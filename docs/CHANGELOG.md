@@ -2,6 +2,41 @@
 
 All notable changes to BourgeoisieIdol will be documented in this file.
 
+## [2.1.0] - 2026-04-29
+
+### Added
+- **IIIF Integration** — evaluate cultural objects via IIIF manifests
+  - Manifest fetching with image URL extraction (Presentation API v2 and v3)
+  - `fetch_manifest` WebSocket handler for controller
+  - Hybrid "Add Item" form with manifest URL field + Fetch button
+  - Image display in audience and judge views with geometric framing
+- **Soviet Mosaic Visual Aesthetic**
+  - Color palette: ochre, workers' red, industrial blue, mosaic gold, concrete
+  - Legacy CSS variable mappings for backward compatibility
+  - `.geometric-frame` with ochre border and gold overlay
+  - `.tessellated-bg` crosshatch background pattern
+  - `.diagonal-emphasis` clip-path
+- **Progressive paragraph reveal** — controller-triggered metadata reveal
+  - "Reveal Next Paragraph" button replaces auto-scroll text advance
+  - Paragraphs split on `\n\n` instead of sentence boundaries
+  - Bordered paragraph containers with Soviet ochre styling
+- **Round question display** — item title shown prominently at round start
+- **Design specification** — `docs/superpowers/specs/2026-04-29-bourgeoisie-idol-iiif-visual.md`
+- **Implementation plan** — `docs/2026-04-29-iiif-visual-transformation-plan.md`
+
+### Changed
+- **Semantic conversion**: stories → items throughout
+  - `session["stories"]` → `session["items"]`
+  - `story_index` → `item_index`
+  - `add_story`/`remove_story` → `add_item`/`remove_item`
+  - `story_added`/`story_removed` → `item_added`/`item_removed`
+  - `text_lines` → `text_paragraphs`, `line` → `paragraph`
+- **Data model**: items include `manifest_url` and `image_url` (nullable)
+- **Import/Export**: uses `items` array with IIIF fields
+- **All page titles**: SPECULATIVE IDOL → BOURGEOISIE IDOL
+- **Text splitting**: sentence-based → paragraph-based (`\n\n`)
+- **Controller**: Story Management → Item Management with IIIF form
+
 ## [2.0.0] - 2026-04-29
 
 ### Changed
