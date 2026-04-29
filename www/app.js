@@ -116,16 +116,25 @@ class SpecIdolClient {
         this.send('set_judge_name', { name });
     }
 
-    addStory(title, text) {
-        this.send('add_story', { title, text });
+    addItem(title, text, manifestUrl = null, imageUrl = null) {
+        this.send('add_item', {
+            title,
+            text,
+            manifest_url: manifestUrl,
+            image_url: imageUrl
+        });
     }
 
-    removeStory(storyIndex) {
-        this.send('remove_story', { story_index: storyIndex });
+    removeItem(itemIndex) {
+        this.send('remove_item', { item_index: itemIndex });
     }
 
-    startRound(storyIndex) {
-        this.send('round_start', { story_index: storyIndex });
+    startRound(itemIndex) {
+        this.send('round_start', { item_index: itemIndex });
+    }
+
+    fetchManifest(manifestUrl) {
+        this.send('fetch_manifest', { manifest_url: manifestUrl });
     }
 
     changeSpeed(speed) {
@@ -156,8 +165,8 @@ class SpecIdolClient {
         this.send('text_advance');
     }
 
-    importSession(stories, config) {
-        this.send('import_session', { stories, config });
+    importSession(items, config) {
+        this.send('import_session', { items, config });
     }
 }
 
