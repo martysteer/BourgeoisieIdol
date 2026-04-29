@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controller - SPECULATIVE IDOL</title>
+    <title>Controller - BOURGEOISIE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -444,12 +444,12 @@
             <div class="page-label">CONTROLLING</div>
             <div class="header-info">
                 <span class="code" id="sessionCode">----</span> |
-                <span id="storyCount">0</span> stories |
+                <span id="itemCount">0</span> items |
                 <span id="judgeCount">0</span> judges |
                 <span id="audienceCount">0</span> audience
             </div>
         </div>
-        <div class="header-context waiting" id="headerStoryTitle">No story selected</div>
+        <div class="header-context waiting" id="headerItemTitle">No item selected</div>
     </header>
 
     <main class="page-content">
@@ -459,7 +459,7 @@
             <div id="currentStatus" class="status-text" role="status" aria-live="polite">Status: Waiting</div>
             <div class="controls">
                 <button onclick="startRound()" id="startBtn">Start Round</button>
-                <button onclick="advanceText()" id="advanceBtn" class="btn-advance" disabled>Advance Text</button>
+                <button onclick="advanceText()" id="advanceBtn" class="btn-advance" disabled>Reveal Next Paragraph</button>
                 <button onclick="togglePause()" id="pauseBtn" class="btn-pause" disabled>Pause</button>
                 <button onclick="resetRound()" id="resetBtn" class="btn-reset">Reset</button>
             </div>
@@ -467,40 +467,50 @@
         </div>
         <div class="story-text-column">
             <div class="story-text" id="liveStoryText">
-                <span class="empty-text">Story text appears here during round...</span>
+                <span class="empty-text">Metadata paragraphs appear here during round...</span>
             </div>
         </div>
     </div>
 
-    <!-- SECONDARY: Story queue (what's next) -->
-    <div class="collapsible" id="storyQueueSection">
-        <h2 onclick="toggleSection('storyQueueSection')">
+    <!-- SECONDARY: Item queue (what's next) -->
+    <div class="collapsible" id="itemQueueSection">
+        <h2 onclick="toggleSection('itemQueueSection')">
             <span class="arrow">▼</span>
-            Story Queue
+            Item Queue
         </h2>
         <div class="section-content">
-            <ul class="story-queue" id="storyQueue"></ul>
+            <ul class="story-queue" id="itemQueue"></ul>
         </div>
     </div>
 
-    <!-- TERTIARY: Story management (collapsed by default) -->
-    <div class="collapsible story-management collapsed" id="storyManagement">
-        <h2 onclick="toggleSection('storyManagement')">
+    <!-- TERTIARY: Item management (collapsed by default) -->
+    <div class="collapsible story-management collapsed" id="itemManagement">
+        <h2 onclick="toggleSection('itemManagement')">
             <span class="arrow">▼</span>
-            Story Management
+            Item Management
         </h2>
         <div class="section-content">
             <div class="management-section">
-                <h3 id="storyFormTitle">Add Story</h3>
+                <h3 id="itemFormTitle">Add Item</h3>
                 <div class="form-group">
-                    <label>Title:</label>
-                    <input type="text" id="storyTitle" placeholder="Story title">
+                    <label>Round Question/Title:</label>
+                    <input type="text" id="itemTitle" placeholder="e.g. Is this metadata complete?">
                 </div>
                 <div class="form-group">
-                    <label>Text:</label>
-                    <textarea id="storyText" placeholder="Story text..."></textarea>
+                    <label>IIIF Manifest URL (optional):</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="manifestUrl" placeholder="https://example.org/manifest.json" style="flex: 1;">
+                        <button type="button" id="fetchManifestBtn" onclick="fetchManifest()">Fetch Manifest</button>
+                    </div>
+                    <span id="manifestStatus" style="font-size: var(--text-caption); display: block; margin-top: 0.25rem;"></span>
+                    <input type="hidden" id="imageUrl">
                 </div>
-                <button onclick="saveStory()" id="saveStoryBtn">Add Story</button>
+                <div class="form-group">
+                    <label>Metadata Text:</label>
+                    <textarea id="itemText" placeholder="Catalogue metadata...&#10;&#10;Separate paragraphs with blank lines"></textarea>
+                    <small style="font-size: var(--text-caption); opacity: 0.7;">Separate paragraphs with double newline (blank line)</small>
+                </div>
+                <button onclick="saveItem()" id="saveItemBtn">Add Item</button>
                 <button onclick="cancelEdit()" id="cancelEditBtn">Cancel</button>
             </div>
 
@@ -547,8 +557,8 @@
         const params = getUrlParams();
         const client = new SpecIdolClient();
         let sessionState = null;
-        let editingStoryIndex = null;
-        let currentLineProgress = { position: 0, total: 0 };
+        let editingItemIndex = null;
+        let currentParagraphProgress = { position: 0, total: 0 };
 
         client.connect();
 
@@ -562,11 +572,9 @@
 
         client.on('session_created', (data) => {
             document.getElementById('sessionCode').textContent = data.code;
-            // Update URL to include code
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('code', data.code);
             window.history.replaceState({}, '', newUrl);
-            // Join as controller
             client.joinSession(data.code, 'controller');
         });
 
@@ -575,10 +583,9 @@
             updateUI();
             updateSessionCounts(data);
 
-            // Initialize status on page load
-            const hasStory = sessionState.current_round.story_index !== null;
-            if (!hasStory && sessionState.current_round.status === 'waiting') {
-                updateStatus('waiting'); // Will show "select a story"
+            const hasItem = sessionState.current_round.item_index !== null;
+            if (!hasItem && sessionState.current_round.status === 'waiting') {
+                updateStatus('waiting');
             }
         });
 
@@ -606,22 +613,40 @@
             }
         });
 
-        client.on('story_added', (data) => {
-            // Controller already updates local state in addStory().
-            // This handler covers stories added by import or future multi-controller.
-            if (sessionState && data.index >= sessionState.stories.length) {
-                sessionState.stories.push({title: data.title, text: ''});
-                renderStoryQueue();
+        client.on('item_added', (data) => {
+            if (sessionState) {
+                sessionState.items.push(data);
+                renderItemQueue();
             }
-            updateSessionCounts({stories: sessionState.stories});
+            updateSessionCounts({items: sessionState.items});
         });
 
-        client.on('story_removed', (data) => {
-            if (sessionState && data.index < sessionState.stories.length) {
-                sessionState.stories.splice(data.index, 1);
-                renderStoryQueue();
+        client.on('item_removed', (data) => {
+            if (sessionState) {
+                sessionState.items.splice(data.item_index, 1);
+                renderItemQueue();
             }
-            updateSessionCounts({stories: sessionState.stories});
+            updateSessionCounts({items: sessionState.items});
+        });
+
+        client.on('manifest_fetched', (data) => {
+            const btn = document.getElementById('fetchManifestBtn');
+            const status = document.getElementById('manifestStatus');
+            btn.disabled = false;
+
+            if (data.error) {
+                status.textContent = `Could not fetch manifest: ${data.error}`;
+                status.style.color = 'var(--soviet-red)';
+                document.getElementById('imageUrl').value = '';
+            } else if (data.image_url) {
+                status.textContent = 'Manifest fetched successfully';
+                status.style.color = 'var(--soviet-gold)';
+                document.getElementById('imageUrl').value = data.image_url;
+            } else {
+                status.textContent = 'Manifest fetched but no image found';
+                status.style.color = 'var(--soviet-gold)';
+                document.getElementById('imageUrl').value = '';
+            }
         });
 
         client.on('round_started', (data) => {
@@ -629,31 +654,31 @@
             document.getElementById('liveStoryText').innerHTML = '';
             if (sessionState) {
                 sessionState.current_round.status = 'running';
-                sessionState.current_round.text_line_count = data.text_line_count || 0;
-                renderStoryQueue(); // Re-render to show disabled state
+                sessionState.current_round.text_paragraph_count = data.text_paragraph_count || 0;
+                renderItemQueue();
             }
-            updateSelectedStoryDisplay();
-            updateTextProgress(0, data.text_line_count || 0); // Reset progress
+            updateSelectedItemDisplay();
+            updateParagraphProgress(0, data.text_paragraph_count || 0);
         });
 
         client.on('text_advanced', (data) => {
-            updateTextProgress(data.position + 1, data.total);
-            appendStoryLine(data.line);
+            updateParagraphProgress(data.position + 1, data.total);
+            appendParagraph(data.paragraph);
         });
 
         client.on('paused', (data) => {
-            updateStatus('paused', currentLineProgress.position, currentLineProgress.total);
+            updateStatus('paused', currentParagraphProgress.position, currentParagraphProgress.total);
             if (sessionState) {
                 sessionState.current_round.status = 'paused';
-                renderStoryQueue(); // Re-render to show disabled state
+                renderItemQueue();
             }
         });
 
         client.on('resumed', (data) => {
-            updateStatus('running', currentLineProgress.position, currentLineProgress.total);
+            updateStatus('running', currentParagraphProgress.position, currentParagraphProgress.total);
             if (sessionState) {
                 sessionState.current_round.status = 'running';
-                renderStoryQueue(); // Re-render to show disabled state
+                renderItemQueue();
             }
         });
 
@@ -666,25 +691,24 @@
                     ...data
                 });
                 renderHistory();
-                renderStoryQueue(); // Re-render to remove disabled state
+                renderItemQueue();
             }
         });
 
         client.on('round_reset', () => {
             updateStatus('waiting');
-            clearStoryText();
-            currentLineProgress = { position: 0, total: 0 };
+            clearItemText();
+            currentParagraphProgress = { position: 0, total: 0 };
             if (sessionState) {
                 sessionState.current_round.status = 'waiting';
-                sessionState.current_round.story_index = null; // Deselect story
-                updateSelectedStoryDisplay(); // Update header to show "No story selected"
-                renderStoryQueue(); // Remove current highlight
+                sessionState.current_round.item_index = null;
+                updateSelectedItemDisplay();
+                renderItemQueue();
             }
         });
 
         client.on('session_imported', async (data) => {
-            await customAlert(`Imported ${data.story_count} stories`);
-            // Trigger refresh by requesting session state
+            await customAlert(`Imported ${data.items.length} items`);
             if (params.code) {
                 client.joinSession(params.code, 'controller');
             }
@@ -701,26 +725,25 @@
             if (!sessionState) return;
 
             document.getElementById('sessionCode').textContent = sessionState.code || '----';
-            renderStoryQueue();
+            renderItemQueue();
             renderHistory();
             updateStatus(sessionState.current_round.status);
-            updateSelectedStoryDisplay();
+            updateSelectedItemDisplay();
         }
 
-        function renderStoryQueue() {
-            const queue = document.getElementById('storyQueue');
-            if (!sessionState || !sessionState.stories || sessionState.stories.length === 0) {
+        function renderItemQueue() {
+            const queue = document.getElementById('itemQueue');
+            if (!sessionState || !sessionState.items || sessionState.items.length === 0) {
                 queue.innerHTML = `
                     <li class="empty-state">
-                        No stories yet.
-                        <span class="cta">Add your first story to get started ↓</span>
+                        No items yet.
+                        <span class="cta">Add your first item to get started ↓</span>
                     </li>
                 `;
 
-                // Auto-expand Story Management if queue empty (onboarding)
-                const storyMgmt = document.getElementById('storyManagement');
-                if (storyMgmt && storyMgmt.classList.contains('collapsed')) {
-                    storyMgmt.classList.remove('collapsed');
+                const itemMgmt = document.getElementById('itemManagement');
+                if (itemMgmt && itemMgmt.classList.contains('collapsed')) {
+                    itemMgmt.classList.remove('collapsed');
                 }
                 return;
             }
@@ -728,16 +751,17 @@
             const status = sessionState.current_round.status;
             const roundActive = status === 'running' || status === 'paused';
 
-            queue.innerHTML = sessionState.stories.map((story, i) => {
-                const isCurrent = i === sessionState.current_round.story_index;
+            queue.innerHTML = sessionState.items.map((item, i) => {
+                const isCurrent = i === sessionState.current_round.item_index;
                 const disabledClass = roundActive ? 'disabled' : '';
+                const hasImage = item.image_url ? '\u{1F5BC}\uFE0F' : '\u{1F4C4}';
                 return `
-                    <li class="story-item ${isCurrent ? 'current' : ''} ${disabledClass}" onclick="selectStory(${i})">
+                    <li class="story-item ${isCurrent ? 'current' : ''} ${disabledClass}" onclick="selectItem(${i})">
                         <div class="story-info">
-                            <strong>${escapeHtml(story.title)}</strong>
+                            <strong>${hasImage} ${escapeHtml(item.title)}</strong>
                         </div>
                         <div class="story-actions">
-                            <button onclick="event.stopPropagation(); removeStory(${i})">Remove</button>
+                            <button onclick="event.stopPropagation(); removeItem(${i})">Remove</button>
                         </div>
                     </li>
                 `;
@@ -768,14 +792,13 @@
             let statusText;
             if ((status === 'running' || status === 'paused') && position !== null && total !== null && position > 0) {
                 const statusWord = status === 'paused' ? 'paused' : 'running';
-                statusText = `Status: ${statusWord}, part ${position}/${total}`;
+                statusText = `Status: ${statusWord}, paragraph ${position}/${total}`;
             } else if (status === 'waiting') {
-                const hasStory = sessionState && sessionState.current_round.story_index !== null;
-                statusText = hasStory ? 'Status: waiting' : 'Status: select a story';
+                const hasItem = sessionState && sessionState.current_round.item_index !== null;
+                statusText = hasItem ? 'Status: waiting' : 'Status: select an item';
             } else {
-                // For other states, check if story is selected
-                const hasStory = sessionState && sessionState.current_round.story_index !== null;
-                statusText = hasStory ? `Status: ${status}` : 'Status: select a story';
+                const hasItem = sessionState && sessionState.current_round.item_index !== null;
+                statusText = hasItem ? `Status: ${status}` : 'Status: select an item';
             }
 
             statusEl.textContent = statusText;
@@ -794,62 +817,76 @@
             pauseBtn.textContent = (status === 'paused') ? 'Resume' : 'Pause';
         }
 
-        function updateTextProgress(position, total) {
-            currentLineProgress = { position, total };
+        function updateParagraphProgress(position, total) {
+            currentParagraphProgress = { position, total };
             if (sessionState && sessionState.current_round.status === 'running') {
                 updateStatus('running', position, total);
             }
         }
 
-        function appendStoryLine(line) {
+        function appendParagraph(paragraph) {
             const textEl = document.getElementById('liveStoryText');
-            // Clear placeholder on first line
             const placeholder = textEl.querySelector('.empty-text');
             if (placeholder) placeholder.remove();
 
-            const lineSpan = document.createElement('span');
-            lineSpan.className = 'text-line';
-            lineSpan.textContent = line;
+            const paraEl = document.createElement('div');
+            paraEl.className = 'text-line';
+            paraEl.style.marginBottom = '1rem';
+            paraEl.style.padding = '0.5rem';
+            paraEl.style.borderLeft = '2px solid var(--soviet-ochre)';
+            paraEl.textContent = paragraph;
 
-            if (textEl.children.length > 0) {
-                const br = document.createElement('br');
-                textEl.appendChild(br);
-            }
-            textEl.appendChild(lineSpan);
+            textEl.appendChild(paraEl);
 
             setTimeout(() => {
-                lineSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                paraEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 100);
         }
 
-        function clearStoryText() {
+        function clearItemText() {
             const textEl = document.getElementById('liveStoryText');
-            const index = sessionState ? sessionState.current_round.story_index : null;
+            const index = sessionState ? sessionState.current_round.item_index : null;
 
-            if (index !== null && sessionState.stories[index]) {
-                // Show dimmed preview of full story text
+            if (index !== null && sessionState.items[index]) {
                 textEl.innerHTML = '';
                 const preview = document.createElement('div');
                 preview.style.opacity = '0.3';
                 preview.style.whiteSpace = 'pre-wrap';
                 preview.style.lineHeight = '1.7';
-                preview.textContent = sessionState.stories[index].text;
+                preview.textContent = sessionState.items[index].text;
                 textEl.appendChild(preview);
             } else {
-                textEl.innerHTML = '<span class="empty-text">Story text appears here during round...</span>';
+                textEl.innerHTML = '<span class="empty-text">Metadata paragraphs appear here during round...</span>';
             }
         }
 
-        async function addStory() {
-            const title = document.getElementById('storyTitle').value.trim();
-            const text = document.getElementById('storyText').value.trim();
+        function fetchManifest() {
+            const manifestUrl = document.getElementById('manifestUrl').value.trim();
+            const status = document.getElementById('manifestStatus');
 
-            if (!title || !text) {
-                await customAlert('Enter both title and text');
+            if (!manifestUrl) {
+                status.textContent = '';
                 return;
             }
 
-            // Validate reasonable lengths
+            status.textContent = 'Fetching manifest...';
+            status.style.color = 'var(--soviet-gold)';
+            document.getElementById('fetchManifestBtn').disabled = true;
+
+            client.fetchManifest(manifestUrl);
+        }
+
+        async function addItem() {
+            const title = document.getElementById('itemTitle').value.trim();
+            const text = document.getElementById('itemText').value.trim();
+            const manifestUrl = document.getElementById('manifestUrl').value.trim() || null;
+            const imageUrl = document.getElementById('imageUrl').value.trim() || null;
+
+            if (!title || !text) {
+                await customAlert('Enter both title and metadata text');
+                return;
+            }
+
             if (title.length > 200) {
                 await customAlert('Title too long (max 200 characters)');
                 return;
@@ -859,131 +896,133 @@
                 return;
             }
 
-            const wasEmpty = !sessionState || sessionState.stories.length === 0;
+            const wasEmpty = !sessionState || sessionState.items.length === 0;
 
-            client.addStory(title, text);
-            if (sessionState) {
-                sessionState.stories.push({title, text});
-                renderStoryQueue();
+            client.addItem(title, text, manifestUrl, imageUrl);
 
-                // Success: first story added - collapse Story Management to shift to "live mode"
-                if (wasEmpty) {
-                    const storyMgmt = document.getElementById('storyManagement');
-                    storyMgmt.classList.add('collapsed');
-                }
+            if (wasEmpty && sessionState) {
+                const itemMgmt = document.getElementById('itemManagement');
+                itemMgmt.classList.add('collapsed');
             }
-            document.getElementById('storyTitle').value = '';
-            document.getElementById('storyText').value = '';
-            editingStoryIndex = null;
+
+            document.getElementById('itemTitle').value = '';
+            document.getElementById('itemText').value = '';
+            document.getElementById('manifestUrl').value = '';
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('manifestStatus').textContent = '';
+            editingItemIndex = null;
             updateFormUI();
         }
 
-        function loadStoryForEditing(index) {
-            if (!sessionState || !sessionState.stories[index]) return;
+        function loadItemForEditing(index) {
+            if (!sessionState || !sessionState.items[index]) return;
 
-            const story = sessionState.stories[index];
-            document.getElementById('storyTitle').value = story.title;
-            document.getElementById('storyText').value = story.text;
-            editingStoryIndex = index;
+            const item = sessionState.items[index];
+            document.getElementById('itemTitle').value = item.title;
+            document.getElementById('itemText').value = item.text;
+            document.getElementById('manifestUrl').value = item.manifest_url || '';
+            document.getElementById('imageUrl').value = item.image_url || '';
+            editingItemIndex = index;
             updateFormUI();
 
-            // Auto-expand Story Management for editing
-            const storyMgmt = document.getElementById('storyManagement');
-            storyMgmt.classList.remove('collapsed');
+            const itemMgmt = document.getElementById('itemManagement');
+            itemMgmt.classList.remove('collapsed');
         }
 
         function updateFormUI() {
-            const formTitle = document.getElementById('storyFormTitle');
-            const saveBtn = document.getElementById('saveStoryBtn');
+            const formTitle = document.getElementById('itemFormTitle');
+            const saveBtn = document.getElementById('saveItemBtn');
             const cancelBtn = document.getElementById('cancelEditBtn');
 
-            if (editingStoryIndex !== null) {
-                formTitle.textContent = 'Edit Story';
-                saveBtn.textContent = 'Update Story';
+            if (editingItemIndex !== null) {
+                formTitle.textContent = 'Edit Item';
+                saveBtn.textContent = 'Update Item';
                 cancelBtn.classList.add('visible');
             } else {
-                formTitle.textContent = 'Add Story';
-                saveBtn.textContent = 'Add Story';
+                formTitle.textContent = 'Add Item';
+                saveBtn.textContent = 'Add Item';
                 cancelBtn.classList.remove('visible');
             }
         }
 
-        async function saveStory() {
-            if (editingStoryIndex !== null) {
-                await updateStory();
+        async function saveItem() {
+            if (editingItemIndex !== null) {
+                await updateItem();
             } else {
-                await addStory();
+                await addItem();
             }
         }
 
-        async function updateStory() {
-            const title = document.getElementById('storyTitle').value.trim();
-            const text = document.getElementById('storyText').value.trim();
+        async function updateItem() {
+            const title = document.getElementById('itemTitle').value.trim();
+            const text = document.getElementById('itemText').value.trim();
+            const manifestUrl = document.getElementById('manifestUrl').value.trim() || null;
+            const imageUrl = document.getElementById('imageUrl').value.trim() || null;
 
             if (!title || !text) {
-                await customAlert('Enter both title and text');
+                await customAlert('Enter both title and metadata text');
                 return;
             }
 
-            if (!sessionState || editingStoryIndex === null) return;
+            if (!sessionState || editingItemIndex === null) return;
 
-            // Update story in place - no need to remove/re-add
-            sessionState.stories[editingStoryIndex] = {title, text};
-            renderStoryQueue();
+            sessionState.items[editingItemIndex] = {title, text, manifest_url: manifestUrl, image_url: imageUrl};
+            renderItemQueue();
 
-            document.getElementById('storyTitle').value = '';
-            document.getElementById('storyText').value = '';
-            editingStoryIndex = null;
+            document.getElementById('itemTitle').value = '';
+            document.getElementById('itemText').value = '';
+            document.getElementById('manifestUrl').value = '';
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('manifestStatus').textContent = '';
+            editingItemIndex = null;
             updateFormUI();
         }
 
         function cancelEdit() {
-            document.getElementById('storyTitle').value = '';
-            document.getElementById('storyText').value = '';
-            editingStoryIndex = null;
+            document.getElementById('itemTitle').value = '';
+            document.getElementById('itemText').value = '';
+            document.getElementById('manifestUrl').value = '';
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('manifestStatus').textContent = '';
+            editingItemIndex = null;
             updateFormUI();
         }
 
-        async function selectStory(index) {
+        async function selectItem(index) {
             if (!sessionState) return;
 
-            // Block story selection during active round
             const status = sessionState.current_round.status;
             if (status === 'running' || status === 'paused') {
-                await customAlert('Cannot change story during active round. Reset or wait for round to end.');
+                await customAlert('Cannot change item during active round. Reset or wait for round to end.');
                 return;
             }
 
-            sessionState.current_round.story_index = index;
-            renderStoryQueue();
-            updateSelectedStoryDisplay();
+            sessionState.current_round.item_index = index;
+            renderItemQueue();
+            updateSelectedItemDisplay();
 
-            // Load story into form for editing (when round not active)
-            loadStoryForEditing(index);
-            clearStoryText();
+            loadItemForEditing(index);
+            clearItemText();
         }
 
-        function updateSelectedStoryDisplay() {
-            const headerEl = document.getElementById('headerStoryTitle');
+        function updateSelectedItemDisplay() {
+            const headerEl = document.getElementById('headerItemTitle');
             if (!sessionState) return;
 
-            const index = sessionState.current_round.story_index;
-            if (index !== null && sessionState.stories[index]) {
-                const title = sessionState.stories[index].title;
+            const index = sessionState.current_round.item_index;
+            if (index !== null && sessionState.items[index]) {
+                const title = sessionState.items[index].title;
                 headerEl.textContent = title;
                 headerEl.classList.remove('waiting');
 
-                // Update status when story selected
                 const currentStatus = sessionState.current_round.status;
                 if (currentStatus === 'waiting' || currentStatus === 'ended') {
                     updateStatus('waiting');
                 }
             } else {
-                headerEl.textContent = 'No story selected';
+                headerEl.textContent = 'No item selected';
                 headerEl.classList.add('waiting');
-
-                // Update status when no story selected
-                updateStatus('waiting'); // Will become "select a story" in updateStatus
+                updateStatus('waiting');
             }
         }
 
@@ -991,9 +1030,9 @@
             document.getElementById(id).classList.toggle('collapsed');
         }
 
-        async function removeStory(index) {
-            if (await customConfirm('Remove this story?')) {
-                client.removeStory(index);
+        async function removeItem(index) {
+            if (await customConfirm('Remove this item?')) {
+                client.removeItem(index);
             }
         }
 
@@ -1001,14 +1040,13 @@
             const btn = document.getElementById('startBtn');
             if (btn.disabled) return;
 
-            if (!sessionState || sessionState.current_round.story_index === null) {
-                await customAlert('Select a story first');
+            if (!sessionState || sessionState.current_round.item_index === null) {
+                await customAlert('Select an item first');
                 return;
             }
 
             btn.disabled = true;
-            client.startRound(sessionState.current_round.story_index);
-            // Will be re-enabled by round_started event via updateStatus()
+            client.startRound(sessionState.current_round.item_index);
         }
 
         async function resetRound() {
@@ -1025,11 +1063,9 @@
                 return;
             }
 
-            // Prevent double-click
             btn.disabled = true;
             client.advanceText();
 
-            // Re-enable after short delay
             setTimeout(() => {
                 if (sessionState && sessionState.current_round.status === 'running') {
                     btn.disabled = false;
@@ -1037,12 +1073,9 @@
             }, 300);
         }
 
-        // Keyboard shortcut: spacebar or right arrow to advance text
         document.addEventListener('keydown', (e) => {
-            // Don't capture if typing in an input/textarea
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-            // Don't capture if modal is open
             const modalOverlay = document.getElementById('modalOverlay');
             if (modalOverlay && modalOverlay.classList.contains('active')) return;
 
@@ -1066,7 +1099,7 @@
             if (!sessionState) return;
 
             const exportData = {
-                stories: sessionState.stories,
+                items: sessionState.items,
                 config: sessionState.config
             };
 
@@ -1097,15 +1130,15 @@
 
             try {
                 const data = JSON.parse(json);
-                client.importSession(data.stories || [], data.config || {});
+                client.importSession(data.items || [], data.config || {});
             } catch (e) {
                 await customAlert('Invalid JSON: ' + e.message);
             }
         }
 
         function updateSessionCounts(data) {
-            if (data.stories !== undefined) {
-                document.getElementById('storyCount').textContent = data.stories.length;
+            if (data.items !== undefined) {
+                document.getElementById('itemCount').textContent = data.items.length;
             }
             if (data.connected_judges !== undefined) {
                 document.getElementById('judgeCount').textContent = data.connected_judges.length;
@@ -1130,7 +1163,6 @@
         async function deleteSession() {
             if (await customConfirm('DELETE SESSION? This will eject all judges, shutdown all audience screens, and delete the session. This cannot be undone.')) {
                 client.send('delete_session');
-                // Redirect back to home after deletion
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 1000);
