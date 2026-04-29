@@ -4,9 +4,37 @@ import os
 import random
 import string
 import time
+import urllib.request
 from datetime import datetime
 import websockets
 from websockets.server import serve
+
+def extract_image_url(manifest):
+    """Extract first image URL from IIIF manifest (v2 or v3)"""
+    # IIIF Presentation API 3.0
+    try:
+        return manifest['items'][0]['items'][0]['items'][0]['body']['id']
+    except (KeyError, IndexError, TypeError):
+        pass
+
+    # IIIF Presentation API 2.1
+    try:
+        return manifest['sequences'][0]['canvases'][0]['images'][0]['resource']['@id']
+    except (KeyError, IndexError, TypeError):
+        pass
+
+    return None
+
+def fetch_manifest(manifest_url):
+    """Fetch IIIF manifest and extract image URL"""
+    try:
+        with urllib.request.urlopen(manifest_url, timeout=10) as response:
+            manifest = json.loads(response.read())
+
+        image_url = extract_image_url(manifest)
+        return image_url, None
+    except Exception as e:
+        return None, str(e)
 
 # Multiple sessions (in memory)
 sessions = {}  # {code: session_data}
@@ -28,11 +56,13 @@ def create_new_session(code):
             "speed_options": [1, 2, 3]
         },
         "clients": {},  # {websocket: {"role": "judge", "judge_id": 1}}
-        "stories": [],
+        "items": [],
         "current_round": {
-            "story_index": None,
+            "item_index": None,
             "title": None,
             "text": None,
+            "manifest_url": None,
+            "image_url": None,
             "start_time": None,
             "speed": 1,
             "paused": False,
@@ -46,9 +76,10 @@ def create_new_session(code):
         "next_judge_id": 1
     }
 
-CONTROLLER_ONLY = {"add_story", "remove_story", "round_start", "speed_change",
+CONTROLLER_ONLY = {"add_item", "remove_item", "round_start", "speed_change",
                     "pause", "resume", "reset_round", "text_advance", "import_session",
-                    "eject_judges", "shutdown_audience", "delete_session"}
+                    "eject_judges", "shutdown_audience", "delete_session",
+                    "fetch_manifest"}
 
 def get_connected_judges(session):
     """Return sorted list of {id, name} for connected judges"""
@@ -92,7 +123,7 @@ async def handle_message(websocket, message_data):
             audience_count = sum(1 for c in sess["clients"].values() if c.get("role") == "audience")
             session_list.append({
                 "code": code,
-                "story_count": len(sess["stories"]),
+                "item_count": len(sess["items"]),
                 "judge_count": judge_count,
                 "audience_count": audience_count
             })
@@ -146,7 +177,7 @@ async def handle_message(websocket, message_data):
             "data": {
                 "code": session["code"],
                 "config": session["config"],
-                "stories": session["stories"],
+                "items": session["items"],
                 "current_round": session["current_round"],
                 "history": session["history"],
                 "client_info": session["clients"][websocket],
@@ -168,72 +199,71 @@ async def handle_message(websocket, message_data):
                 "data": {"audience_count": audience_count}
             }, exclude=websocket)
 
-    elif msg_type == "add_story":
-        title = data.get("title", "Untitled")
-        text = data.get("text", "")
-        session["stories"].append({"title": title, "text": text})
-        await broadcast_to_session(session_code, {
-            "type": "story_added",
-            "data": {"index": len(session["stories"]) - 1, "title": title}
-        })
+    elif msg_type == "add_item":
+        title = data.get("title", "").strip()
+        text = data.get("text", "").strip()
+        manifest_url = data.get("manifest_url", "").strip() or None
+        image_url = data.get("image_url", "").strip() or None
 
-    elif msg_type == "remove_story":
-        story_index = data.get("story_index")
-        if story_index is not None and 0 <= story_index < len(session["stories"]):
-            session["stories"].pop(story_index)
-            await broadcast_to_session(session_code, {
-                "type": "story_removed",
-                "data": {"index": story_index}
-            })
-
-    elif msg_type == "round_start":
-        story_index = data.get("story_index", 0)
-        if story_index >= len(session["stories"]):
+        if not title or not text:
             await websocket.send(json.dumps({
                 "type": "error",
-                "data": {"message": "Invalid story index"}
+                "data": {"message": "Title and text required"}
             }))
             return
 
-        story = session["stories"][story_index]
-        # Split text into sentence chunks (2-3 sentences per chunk)
-        import re
+        item = {
+            "title": title,
+            "text": text,
+            "manifest_url": manifest_url,
+            "image_url": image_url
+        }
+        session["items"].append(item)
 
-        # Fallback to full text if empty or malformed
-        text = story.get("text", "").strip()
+        await broadcast_to_session(session_code, {
+            "type": "item_added",
+            "data": item
+        })
+
+    elif msg_type == "remove_item":
+        item_index = data.get("item_index")
+        if item_index is not None and 0 <= item_index < len(session["items"]):
+            session["items"].pop(item_index)
+            await broadcast_to_session(session_code, {
+                "type": "item_removed",
+                "data": {"item_index": item_index}
+            })
+
+    elif msg_type == "round_start":
+        item_index = data.get("item_index")
+        if item_index is None or item_index < 0 or item_index >= len(session["items"]):
+            await websocket.send(json.dumps({
+                "type": "error",
+                "data": {"message": "Invalid item index"}
+            }))
+            return
+
+        item = session["items"][item_index]
+
+        # Split text into paragraphs (double newline)
+        text = item.get("text", "").strip()
         if not text:
-            text_lines = ["[Empty story]"]
+            text_paragraphs = ["[Empty metadata]"]
         else:
-            # Split by sentence endings (. ! ?)
-            sentences = re.split(r'([.!?]+\s+)', text)
-            # Rejoin punctuation with sentences
-            sentences = [''.join(sentences[i:i+2]).strip() for i in range(0, len(sentences)-1, 2) if sentences[i].strip()]
-
-            # Fallback if no sentences found
-            if not sentences:
-                sentences = [text]
-
-            # Group into chunks of 2-3 sentences
-            text_lines = []
-            chunk = []
-            for sent in sentences:
-                chunk.append(sent)
-                if len(chunk) >= 3:
-                    text_lines.append(' '.join(chunk))
-                    chunk = []
-            if chunk:  # Add remaining sentences
-                text_lines.append(' '.join(chunk))
-
-            # Final fallback
-            if not text_lines:
-                text_lines = [text]
+            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+            if not paragraphs:
+                text_paragraphs = [text]
+            else:
+                text_paragraphs = paragraphs
 
         session["current_round"] = {
-            "story_index": story_index,
-            "title": story["title"],
-            "text": story["text"],
-            "text_lines": text_lines,
-            "text_position": 0,  # Current line index
+            "item_index": item_index,
+            "title": item["title"],
+            "text": item["text"],
+            "manifest_url": item.get("manifest_url"),
+            "image_url": item.get("image_url"),
+            "text_paragraphs": text_paragraphs,
+            "text_position": 0,
             "start_time": time.time(),
             "speed": 1,
             "paused": False,
@@ -247,9 +277,11 @@ async def handle_message(websocket, message_data):
         await broadcast_to_session(session_code, {
             "type": "round_started",
             "data": {
-                "title": story["title"],
-                "text": story["text"],
-                "text_line_count": len(text_lines),
+                "title": item["title"],
+                "text": item["text"],
+                "manifest_url": item.get("manifest_url"),
+                "image_url": item.get("image_url"),
+                "text_paragraph_count": len(text_paragraphs),
                 "start_time": now,
                 "server_time": now
             }
@@ -298,11 +330,11 @@ async def handle_message(websocket, message_data):
             return
 
         text_position = session["current_round"]["text_position"]
-        text_lines = session["current_round"]["text_lines"]
+        text_paragraphs = session["current_round"]["text_paragraphs"]
 
         # Check if text exhausted
-        if text_position >= len(text_lines):
-            # Victory - reader finished without all judges buzzing
+        if text_position >= len(text_paragraphs):
+            # Victory - all paragraphs revealed without all judges buzzing
             now = time.time()
             elapsed = now - session["current_round"]["start_time"]
             session["current_round"]["status"] = "victory"
@@ -320,18 +352,41 @@ async def handle_message(websocket, message_data):
                 "data": outcome_data
             })
         else:
-            # Advance to next line
-            current_line = text_lines[text_position]
+            # Advance to next paragraph
+            current_paragraph = text_paragraphs[text_position]
             session["current_round"]["text_position"] += 1
 
             await broadcast_to_session(session_code, {
                 "type": "text_advanced",
                 "data": {
-                    "line": current_line,
+                    "paragraph": current_paragraph,
                     "position": text_position,
-                    "total": len(text_lines)
+                    "total": len(text_paragraphs)
                 }
             })
+
+    elif msg_type == "fetch_manifest":
+        manifest_url = data.get("manifest_url", "").strip()
+
+        if not manifest_url:
+            await websocket.send(json.dumps({
+                "type": "manifest_fetched",
+                "data": {
+                    "image_url": None,
+                    "error": "No manifest URL provided"
+                }
+            }))
+            return
+
+        image_url, error = fetch_manifest(manifest_url)
+
+        await websocket.send(json.dumps({
+            "type": "manifest_fetched",
+            "data": {
+                "image_url": image_url,
+                "error": error
+            }
+        }))
 
     elif msg_type == "buzz":
         # Only accept buzzes during a running round
@@ -418,9 +473,11 @@ async def handle_message(websocket, message_data):
 
     elif msg_type == "reset_round":
         session["current_round"] = {
-            "story_index": None,
+            "item_index": None,
             "title": None,
             "text": None,
+            "manifest_url": None,
+            "image_url": None,
             "start_time": None,
             "speed": 1,
             "paused": False,
@@ -435,37 +492,33 @@ async def handle_message(websocket, message_data):
         })
 
     elif msg_type == "import_session":
-        stories = data.get("stories", [])
-        config = data.get("config", {})
+        imported_items = data.get("items", [])
+        imported_config = data.get("config", {})
 
-        # Validate stories format
-        if not isinstance(stories, list):
-            await websocket.send(json.dumps({
-                "type": "error",
-                "data": {"message": "Invalid stories format"}
-            }))
-            return
+        # Validate items
+        valid_items = []
+        for item in imported_items:
+            if isinstance(item, dict) and "title" in item and "text" in item:
+                valid_item = {
+                    "title": item["title"],
+                    "text": item["text"],
+                    "manifest_url": item.get("manifest_url"),
+                    "image_url": item.get("image_url")
+                }
+                valid_items.append(valid_item)
 
-        for story in stories:
-            if not isinstance(story, dict) or "title" not in story or "text" not in story:
-                await websocket.send(json.dumps({
-                    "type": "error",
-                    "data": {"message": "Invalid story format"}
-                }))
-                return
+        session["items"] = valid_items
 
-        # Merge config (only allowed keys)
-        if "timer_duration" in config:
-            session["config"]["timer_duration"] = int(config["timer_duration"])
-        if "judge_count" in config:
-            session["config"]["judge_count"] = int(config["judge_count"])
-
-        # Replace stories
-        session["stories"] = stories
+        # Update config if provided
+        if "timer_duration" in imported_config:
+            session["config"]["timer_duration"] = int(imported_config["timer_duration"])
 
         await broadcast_to_session(session_code, {
             "type": "session_imported",
-            "data": {"story_count": len(stories)}
+            "data": {
+                "items": valid_items,
+                "config": session["config"]
+            }
         })
 
     elif msg_type == "eject_judges":
