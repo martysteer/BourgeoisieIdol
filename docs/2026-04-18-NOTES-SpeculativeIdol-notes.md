@@ -6,7 +6,7 @@
 
 Oh hello there...
 
-![image-20260418100445064](./image-20260418100445064.png)
+![image-20260418100445064](./specidol/image-20260418100445064.png)
 
 I was wondering, do you [fancy/having bandwidth for] ANOTHER vibecoding challenge?
 
