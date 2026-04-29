@@ -14,9 +14,9 @@ BourgeoisieIdol — fork of [SpecIdol](https://github.com/martysteer/SpecIdol), 
 - [Soviet mosaics, A lot of them made in the 80’s](https://www.reddit.com/r/RetroFuturism/comments/j0904z/soviet_mosaics_a_lot_of_them_made_in_the_80s/) (visual aesthetic)
 - [International Image Interoperability Framework](https://iiif.io/api/index.html) (technology)
 
-**For the [Twenty-third Annual Historical Materialism Conference: Planetary Warscapes Ablaze: Imperial Mutations in Infernal Times](https://www.historicalmaterialism.org/event/twenty-third-annual-conference/#newtechnologies)**
+**For the [Twenty-third Annual Historical Materialism Conference: Planetary Warscapes Ablaze: Imperial Mutations in Infernal Times](https://www.historicalmaterialism.org/event/twenty-third-annual-conference/#newtechnologies)**, **[Marxism, Culture and the Arts Stream](https://www.historicalmaterialism.org/event/twenty-third-annual-conference/#marxismculture)** and **[New Technologies and Capital Accumulation](https://www.historicalmaterialism.org/event/twenty-third-annual-conference/#newtechnologies)**
 
-*Original: live "Pop Idol for writers" web app for conventions. Readers read aloud with auto-scrolling text, three judges buzz them out. Survive 2 min without all judges buzzing = win.*
+*Original: live "Pop Idol for writers" web app for writers conventions. Readers read aloud with auto-scrolling text, three judges buzz them out. Survive 2 min without all judges buzzing = win.*
 
 ## Development Commands
 
@@ -155,12 +155,27 @@ When adding features: create doc *before* or *alongside* implementation.
 
 Anti-Capitalist Software License v1.4 — see LICENSE file.
 
-## Adapting from SpecIdol to BourgeoisieIdol
+## Thematic Framework
 
-This codebase starts as a direct fork of SpecIdol. Future adaptations will incorporate concepts from:
-- **Bourgeoisie** (class systems, social stratification)
-- **Popular assembly** (direct democracy, collective decision-making)
-- **Point systems** (measurement, precision, typographic detail)
-- **Socialist voting** (alternative decision mechanisms)
+BourgeoisieIdol critically engages with competitive cultural production by layering multiple conceptual frames:
 
-When making changes, consider how these themes interact with the existing game show format.
+**Class Analysis** — Examine power dynamics between judges (gatekeepers), readers (cultural workers), and audience (consumers). How does the format reproduce or challenge bourgeois cultural hierarchies?
+
+**Democratic Alternatives** — Popular assemblies and citizens' assemblies suggest alternative models to competitive elimination. Could collective deliberation replace individual judgment? What would non-hierarchical evaluation look like?
+
+**Measurement & Standardization** — Typographic points represent precision and shared standards. The app uses timers, scores, and structured formats. Question: what gets measured, what gets valued, and who decides?
+
+**Visual Language** — Soviet mosaics and retro-futurist aesthetics provide visual alternatives to capitalist slickness. Bold geometry, public scale, collective themes.
+
+**Technical Infrastructure** — IIIF demonstrates open standards and federated access. Apply these principles to cultural platforms and creative tools.
+
+**Conference Context** — Developed for Historical Materialism Conference (Marxism, Culture & Arts / New Technologies & Capital Accumulation streams). The app itself is an intervention in how we structure creative competition.
+
+### Design Questions to Explore
+
+- Can a game show format be repurposed for non-competitive ends?
+- What alternatives exist to winner/loser dynamics?
+- How do technological affordances shape cultural participation?
+- What happens when we make infrastructure choices visible and political?
+
+See `docs/sources/` for detailed reference materials on each conceptual influence.

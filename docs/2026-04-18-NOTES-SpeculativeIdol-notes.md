@@ -1,3 +1,9 @@
+# Original SpecIdol Concept Notes
+
+**Note:** These are the original notes from the SpecIdol project development. BourgeoisieIdol builds on this foundation while adding critical engagement with competitive cultural production.
+
+---
+
 Oh hello there...
 
 ![image-20260418100445064](./image-20260418100445064.png)

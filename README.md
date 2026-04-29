@@ -1,6 +1,10 @@
-# SPECULATIVE IDOL
+# BOURGEOISIE IDOL
 
-A live "Pop Idol for writers" web application for speculative fiction conventions. Readers read stories aloud with auto-scrolling text, three editor-judges buzz them out with big red buttons, and an audience watches on a projector. If the reader survives 2 minutes without all three judges buzzing, they win.
+A live web application examining competitive cultural production through a game show format. Originally forked from [SpecIdol](https://github.com/martysteer/SpecIdol) and adapted for the [Twenty-third Annual Historical Materialism Conference](https://www.historicalmaterialism.org/event/twenty-third-annual-conference/).
+
+**Concept:** Readers present creative work, judges evaluate in real-time, audience observes. The format itself becomes a site for interrogating cultural gatekeeping, collective decision-making, and alternatives to competitive hierarchies.
+
+**Mechanics:** Auto-scrolling text, multi-device coordination, WebSocket-based real-time state sync. Readers read aloud, judges buzz with big red buttons. Survive 2 minutes without all judges buzzing = win.
 
 ## Features
 
@@ -144,6 +148,18 @@ See [LICENSE](LICENSE) file for full text.
 
 https://anticapitalist.software/
 
+## Conceptual Framework
+
+See `docs/sources/` for reference materials. Key influences:
+- **Bourgeoisie** — class systems, social dynamics
+- **Popular assembly / Citizens' assembly** — collective decision-making, direct democracy
+- **Point (typography)** — measurement, precision, standardization
+- **Soviet mosaics** — visual aesthetic, socialist public art
+- **IIIF** — open standards, federated infrastructure
+- **Socialist voting** — critique of competitive/hierarchical systems
+
 ## Credits
 
-Built for a speculative fiction writers' convention. Inspired by Pop Idol and game show aesthetics.
+Forked from [SpecIdol](https://github.com/martysteer/SpecIdol) by Marty Steer.
+
+Developed for presentation at the Twenty-third Annual Historical Materialism Conference (Marxism, Culture and the Arts / New Technologies and Capital Accumulation streams).

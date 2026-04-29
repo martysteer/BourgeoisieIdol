@@ -1,6 +1,33 @@
 # Changelog
 
-All notable changes to SpecIdol will be documented in this file.
+All notable changes to BourgeoisieIdol will be documented in this file.
+
+## [2.0.0] - 2026-04-29
+
+### Changed
+- **Forked from SpecIdol** — BourgeoisieIdol adaptation begins
+- **Project rebranding** — all references updated to BourgeoisieIdol
+- **Conceptual framework** — integrated influences from class analysis, democratic assemblies, typographic systems, Soviet aesthetics, IIIF standards, and socialist critique
+- **Documentation structure** — added `docs/sources/` with reference materials for each conceptual influence
+- **README** — updated to reflect conference context and thematic framework
+- **BOOTSTRAP** — updated to include thematic considerations in working style
+- **CLAUDE.md** — expanded with detailed thematic framework and design questions
+
+### Added
+- **Reference materials** in `docs/sources/`:
+  - `bourgeoisie.md` — class systems, social dynamics
+  - `popular-assembly.md` — collective decision-making
+  - `citizens-assembly.md` — direct democracy
+  - `point-typography.md` — measurement, precision
+  - `brief-visual-exploration-typography.md` — historical semantics
+  - `socialist-voting.md` — sociocultural values
+  - `soviet-mosaics.md` — visual aesthetic
+  - `iiif.md` — technology, open standards
+  - `historical-materialism-conference.md` — conference context
+
+---
+
+# SpecIdol Changelog (pre-fork)
 
 ## [Unreleased]
 

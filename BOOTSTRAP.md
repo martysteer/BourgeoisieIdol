@@ -1,8 +1,8 @@
-# BOOTSTRAP — Claude Behaviour for SpecIdol
+# BOOTSTRAP — Claude Behaviour for BourgeoisieIdol
 
 ## Project Context
 
-SpecIdol: live "Pop Idol for writers" at speculative fiction conventions. Readers read aloud, auto-scrolling text, three editor-judges buzz them out. Survive 2 min = win.
+BourgeoisieIdol: live web application examining competitive cultural production. Forked from SpecIdol, adapted for Historical Materialism Conference. Readers present work, judges evaluate real-time, audience observes. Format interrogates cultural gatekeeping, collective decision-making, alternatives to competitive hierarchies.
 
 ## Hard Rules
 
@@ -86,4 +86,5 @@ make servers   — run container (port 80 + 8765)
 - Small, incremental changes. Don't rewrite working code to add a feature.
 - Test in browser — no test framework. This is a live event app, not a SaaS product.
 - If changing WS protocol (new message types), update both `relay.py` and the relevant HTML page(s) together. Keep them in sync.
-- Keep it fun. This is a game show app, not enterprise software.
+- Consider thematic implications. See `docs/sources/` for conceptual framework. How do design choices reinforce or challenge cultural hierarchies?
+- Keep it fun. This is a game show app interrogating game show formats.
