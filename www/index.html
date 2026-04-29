@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPECULATIVE IDOL</title>
+    <title>BOURGEOISIE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,7 +137,7 @@
 </head>
 <body class="page-centered">
     <header class="page-header">
-        <h1>SPECULATIVE<br>IDOL</h1>
+        <h1>BOURGEOISIE<br>IDOL</h1>
     </header>
 
     <main class="page-content">
@@ -216,7 +216,7 @@
                 btn.innerHTML = `
                     <div class="session-code">${escapeHtml(session.code)}</div>
                     <div class="session-stats">
-                        ${session.story_count} stories | ${session.judge_count} judges | ${session.audience_count} audience
+                        ${session.item_count} items | ${session.judge_count} judges | ${session.audience_count} audience
                     </div>
                 `;
                 container.appendChild(btn);
@@ -230,8 +230,8 @@
             document.getElementById('joinJudgeBtn').disabled = false;
             document.querySelectorAll('#sessionButtons button').forEach(btn => {
                 const isSelected = btn.querySelector('.session-code').textContent === code;
-                btn.style.background = isSelected ? '#0f0' : '#000';
-                btn.style.color = isSelected ? '#000' : '#0f0';
+                btn.style.background = isSelected ? 'var(--soviet-ochre)' : 'var(--soviet-concrete)';
+                btn.style.color = isSelected ? 'var(--soviet-concrete)' : 'var(--soviet-ochre)';
             });
         }
 
