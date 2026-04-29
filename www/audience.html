@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audience - SPECULATIVE IDOL</title>
+    <title>Audience - BOURGEOISIE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,17 +127,25 @@
             <div class="page-label">WATCHING</div>
             <div class="header-info">
                 <span id="sessionCode">----</span> |
-                <span id="storyCount">0</span> stories |
+                <span id="itemCount">0</span> items |
                 <span id="judgeCount">0</span> judges |
                 <span id="audienceCount">0</span> audience
             </div>
         </div>
-        <div class="header-context waiting" id="storyTitle" aria-live="polite">Waiting for story...</div>
+        <div class="header-context waiting" id="itemTitle" aria-live="polite">Waiting for item...</div>
     </header>
 
-    <main class="page-content">
+    <main class="page-content tessellated-bg">
+        <div id="roundQuestion" style="font-size: var(--text-heading); color: var(--soviet-gold); margin: 2rem 0; text-align: center; display: none;"></div>
+
+        <div id="imageContainer" class="geometric-frame" style="margin: 0 auto 2rem; max-width: 800px; display: none; background: var(--black); padding: 1rem;">
+            <img id="roundImage" src="" alt="Item image" style="width: 100%; height: auto; display: block;">
+        </div>
+
         <div class="story-text-container">
-            <div class="story-text" id="storyText" aria-live="polite" aria-relevant="additions"></div>
+            <div class="story-text" id="storyText" aria-live="polite" aria-relevant="additions">
+                <div id="metadataParagraphs"></div>
+            </div>
         </div>
     </main>
 
@@ -148,8 +156,8 @@
     <div class="outcome" id="outcome" role="alert" aria-live="assertive"></div>
 
     <div id="audioOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:2000;display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="enableAudio()">
-        <div style="font-family:'Press Start 2P',cursive;color:#0f0;text-align:center;font-size:var(--text-heading);line-height:1.5;">
-            SPECULATIVE IDOL<br><br>
+        <div style="font-family:'Press Start 2P',cursive;color:var(--soviet-ochre);text-align:center;font-size:var(--text-heading);line-height:1.5;">
+            BOURGEOISIE IDOL<br><br>
             <span style="font-size:var(--text-caption);opacity:0.7;">Click anywhere to enable audio</span>
         </div>
     </div>
@@ -178,8 +186,8 @@
             if (data.code) {
                 document.getElementById('sessionCode').textContent = data.code;
             }
-            if (data.stories) {
-                document.getElementById('storyCount').textContent = data.stories.length;
+            if (data.items) {
+                document.getElementById('itemCount').textContent = data.items.length;
             }
             // Render judge panels based on connected judges
             if (data.connected_judges) {
@@ -221,7 +229,7 @@
         });
 
         client.on('text_advanced', (data) => {
-            appendTextLine(data.line);
+            appendParagraph(data.paragraph);
         });
 
         client.on('buzzed', (data) => {
@@ -276,13 +284,13 @@
             }
         });
 
-        client.on('story_added', (data) => {
-            const el = document.getElementById('storyCount');
+        client.on('item_added', (data) => {
+            const el = document.getElementById('itemCount');
             el.textContent = (parseInt(el.textContent) || 0) + 1;
         });
 
-        client.on('story_removed', (data) => {
-            const el = document.getElementById('storyCount');
+        client.on('item_removed', (data) => {
+            const el = document.getElementById('itemCount');
             el.textContent = Math.max(0, (parseInt(el.textContent) || 0) - 1);
         });
 
@@ -307,31 +315,45 @@
         function startRound(roundData) {
             resetView();
 
-            const titleEl = document.getElementById('storyTitle');
+            // Show round question
+            const questionEl = document.getElementById('roundQuestion');
+            questionEl.textContent = roundData.title || 'Untitled';
+            questionEl.style.display = 'block';
+
+            // Header title
+            const titleEl = document.getElementById('itemTitle');
             titleEl.textContent = roundData.title || 'Untitled';
             titleEl.classList.remove('waiting');
-            document.getElementById('storyText').textContent = ''; // Clear - will be populated line by line
-        }
 
-        function appendTextLine(line) {
-            const textEl = document.getElementById('storyText');
-
-            // Create span for new line with animation class
-            const lineSpan = document.createElement('span');
-            lineSpan.className = 'text-line';
-            lineSpan.textContent = line;
-
-            textEl.appendChild(lineSpan);
-
-            // Add line break after (except for first line)
-            if (textEl.children.length > 1) {
-                const br = document.createElement('br');
-                textEl.insertBefore(br, lineSpan);
+            // Show image if available
+            const imageContainer = document.getElementById('imageContainer');
+            const imageEl = document.getElementById('roundImage');
+            if (roundData.image_url) {
+                imageEl.src = roundData.image_url;
+                imageContainer.style.display = 'block';
+            } else {
+                imageContainer.style.display = 'none';
             }
 
-            // Scroll new line into view — 'nearest' scrolls minimum amount needed
+            // Clear metadata paragraphs
+            document.getElementById('metadataParagraphs').innerHTML = '';
+        }
+
+        function appendParagraph(paragraph) {
+            const container = document.getElementById('metadataParagraphs');
+
+            const paraEl = document.createElement('div');
+            paraEl.className = 'text-line';
+            paraEl.style.marginBottom = '1.5rem';
+            paraEl.style.padding = '1rem';
+            paraEl.style.border = '1px solid var(--soviet-ochre)';
+            paraEl.style.background = 'rgba(212, 165, 116, 0.05)';
+            paraEl.textContent = paragraph;
+
+            container.appendChild(paraEl);
+
             setTimeout(() => {
-                lineSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                paraEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
             }, 100);
         }
 
@@ -363,14 +385,16 @@
             stopTensionTicks();
             tensionMode = false;
 
-            // Stop timer
             if (timer) timer.stop();
 
             document.getElementById('outcome').style.display = 'none';
-            const titleEl = document.getElementById('storyTitle');
-            titleEl.textContent = 'Waiting for story...';
+            const titleEl = document.getElementById('itemTitle');
+            titleEl.textContent = 'Waiting for item...';
             titleEl.classList.add('waiting');
-            document.getElementById('storyText').textContent = '';
+
+            document.getElementById('roundQuestion').style.display = 'none';
+            document.getElementById('imageContainer').style.display = 'none';
+            document.getElementById('metadataParagraphs').innerHTML = '';
 
             document.querySelectorAll('.judge-cell').forEach(cell => {
                 cell.classList.remove('buzzed');

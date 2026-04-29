@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Judge - SPECULATIVE IDOL</title>
+    <title>Judge - BOURGEOISIE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -120,7 +120,7 @@
             <div class="page-label">JUDGING</div>
             <div class="header-info">
                 <span id="code">----</span> |
-                <span id="storyCount">0</span> stories |
+                <span id="itemCount">0</span> items |
                 <span id="judgeCount">0</span> judges |
                 <span id="audienceCount">0</span> audience
             </div>
@@ -129,7 +129,11 @@
     </header>
 
     <main class="page-content" id="main" role="main">
-        <div class="story-title" id="storyTitle" aria-live="polite"></div>
+        <div class="story-title" id="itemTitle" aria-live="polite"></div>
+        <div id="imageContainer" class="geometric-frame" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
+            <img id="roundImage" src="" alt="Item image" style="width: 100%; height: auto; display: block;">
+        </div>
+        <div id="metadataParagraphs" style="max-width: 400px; margin: 0 auto; text-align: left;"></div>
         <div class="waiting">Waiting for round to start...</div>
     </main>
 
@@ -199,8 +203,8 @@
                 myJudgeId = data.client_info.judge_id;
                 document.getElementById('code').textContent = data.code || '----';
             }
-            if (data.stories) {
-                document.getElementById('storyCount').textContent = data.stories.length;
+            if (data.items) {
+                document.getElementById('itemCount').textContent = data.items.length;
             }
             // Update connected judges and own name
             if (data.connected_judges) {
@@ -270,7 +274,18 @@
         });
 
         client.on('text_advanced', (data) => {
-            // Judges don't display text, but handle event to suppress console warning
+            // Show paragraph on judge view too
+            const container = document.getElementById('metadataParagraphs');
+            if (container) {
+                const paraEl = document.createElement('div');
+                paraEl.style.marginBottom = '0.75rem';
+                paraEl.style.padding = '0.5rem';
+                paraEl.style.fontSize = 'var(--text-caption)';
+                paraEl.style.border = '1px solid var(--soviet-ochre)';
+                paraEl.style.background = 'rgba(212, 165, 116, 0.05)';
+                paraEl.textContent = data.paragraph;
+                container.appendChild(paraEl);
+            }
         });
 
         client.on('speed_changed', (data) => {
@@ -340,13 +355,13 @@
             }
         });
 
-        client.on('story_added', (data) => {
-            const el = document.getElementById('storyCount');
+        client.on('item_added', (data) => {
+            const el = document.getElementById('itemCount');
             el.textContent = (parseInt(el.textContent) || 0) + 1;
         });
 
-        client.on('story_removed', (data) => {
-            const el = document.getElementById('storyCount');
+        client.on('item_removed', (data) => {
+            const el = document.getElementById('itemCount');
             el.textContent = Math.max(0, (parseInt(el.textContent) || 0) - 1);
         });
 
@@ -359,10 +374,35 @@
 
         function startRound(roundData) {
             buzzed = false;
-            document.getElementById('storyTitle').textContent = roundData.title || '';
+            document.getElementById('itemTitle').textContent = roundData.title || '';
+
+            // Show image if available
+            const imageContainer = document.getElementById('imageContainer');
+            const imageEl = document.getElementById('roundImage');
+            if (roundData.image_url) {
+                imageEl.src = roundData.image_url;
+                imageContainer.style.display = 'block';
+            } else {
+                imageContainer.style.display = 'none';
+            }
+
+            // Clear metadata
+            const metaContainer = document.getElementById('metadataParagraphs');
+            if (metaContainer) metaContainer.innerHTML = '';
 
             const main = document.getElementById('main');
-            main.innerHTML = `
+            // Keep the image/metadata elements, replace only the interactive area
+            const existingTitle = document.getElementById('itemTitle');
+            const existingImage = document.getElementById('imageContainer');
+            const existingMeta = document.getElementById('metadataParagraphs');
+
+            main.innerHTML = '';
+            main.appendChild(existingTitle);
+            main.appendChild(existingImage);
+            main.appendChild(existingMeta);
+
+            const buzzArea = document.createElement('div');
+            buzzArea.innerHTML = `
                 <button class="buzz-button" id="buzzButton" onclick="buzz()" aria-label="Buzz out the reader">
                     BUZZ
                 </button>
@@ -371,6 +411,7 @@
                     <div class="timer" id="timer" role="timer" aria-live="off">0:00.0</div>
                 </div>
             `;
+            main.appendChild(buzzArea);
 
             renderJudgePanels();
 
@@ -436,8 +477,17 @@
         function resetView() {
             if (timer) timer.stop();
             buzzed = false;
-            document.getElementById('storyTitle').textContent = '';
-            document.getElementById('main').innerHTML = '<div class="waiting">Waiting for round to start...</div>';
+
+            const main = document.getElementById('main');
+            main.innerHTML = `
+                <div class="story-title" id="itemTitle" aria-live="polite"></div>
+                <div id="imageContainer" class="geometric-frame" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
+                    <img id="roundImage" src="" alt="Item image" style="width: 100%; height: auto; display: block;">
+                </div>
+                <div id="metadataParagraphs" style="max-width: 400px; margin: 0 auto; text-align: left;"></div>
+                <div class="waiting">Waiting for round to start...</div>
+            `;
+
             document.querySelectorAll('.judge-cell').forEach(cell => {
                 cell.classList.remove('buzzed');
             });
