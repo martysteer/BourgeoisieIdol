@@ -111,8 +111,8 @@ def create_new_session(code):
             "item_index": None,
             "title": None,
             "text": None,
-            "manifest_url": None,
-            "image_url": None,
+            "canvases": [],
+            "canvas_index": 0,
             "start_time": None,
             "speed": 1,
             "paused": False,
@@ -127,8 +127,8 @@ def create_new_session(code):
     }
 
 CONTROLLER_ONLY = {"add_item", "remove_item", "round_start", "speed_change",
-                    "pause", "resume", "reset_round", "text_advance", "import_session",
-                    "eject_judges", "shutdown_audience", "delete_session",
+                    "pause", "resume", "reset_round", "text_advance", "canvas_advance",
+                    "import_session", "eject_judges", "shutdown_audience", "delete_session",
                     "fetch_manifest"}
 
 def get_connected_judges(session):
@@ -253,7 +253,7 @@ async def handle_message(websocket, message_data):
         title = data.get("title", "").strip()
         text = data.get("text", "").strip()
         manifest_url = data.get("manifest_url", "").strip() or None
-        image_url = data.get("image_url", "").strip() or None
+        canvases = data.get("canvases", [])
 
         if not title or not text:
             await websocket.send(json.dumps({
@@ -266,7 +266,7 @@ async def handle_message(websocket, message_data):
             "title": title,
             "text": text,
             "manifest_url": manifest_url,
-            "image_url": image_url
+            "canvases": canvases
         }
         session["items"].append(item)
 
@@ -310,8 +310,8 @@ async def handle_message(websocket, message_data):
             "item_index": item_index,
             "title": item["title"],
             "text": item["text"],
-            "manifest_url": item.get("manifest_url"),
-            "image_url": item.get("image_url"),
+            "canvases": item.get("canvases", []),
+            "canvas_index": 0,
             "text_paragraphs": text_paragraphs,
             "text_position": 0,
             "start_time": time.time(),
@@ -329,8 +329,8 @@ async def handle_message(websocket, message_data):
             "data": {
                 "title": item["title"],
                 "text": item["text"],
-                "manifest_url": item.get("manifest_url"),
-                "image_url": item.get("image_url"),
+                "canvases": item.get("canvases", []),
+                "canvas_index": 0,
                 "text_paragraph_count": len(text_paragraphs),
                 "start_time": now,
                 "server_time": now
@@ -415,6 +415,35 @@ async def handle_message(websocket, message_data):
                 }
             })
 
+    elif msg_type == "canvas_advance":
+        # Only advance during running round
+        if session["current_round"]["status"] != "running":
+            return
+
+        canvases = session["current_round"].get("canvases", [])
+        if not canvases:
+            return
+
+        direction = data.get("direction")
+        canvas_index = session["current_round"]["canvas_index"]
+
+        if direction == "next":
+            canvas_index = min(canvas_index + 1, len(canvases) - 1)
+        elif direction == "prev":
+            canvas_index = max(canvas_index - 1, 0)
+        else:
+            return
+
+        session["current_round"]["canvas_index"] = canvas_index
+
+        await broadcast_to_session(session_code, {
+            "type": "canvas_advanced",
+            "data": {
+                "canvas_index": canvas_index,
+                "canvas": canvases[canvas_index]
+            }
+        })
+
     elif msg_type == "fetch_manifest":
         manifest_url = data.get("manifest_url", "").strip()
 
@@ -422,18 +451,18 @@ async def handle_message(websocket, message_data):
             await websocket.send(json.dumps({
                 "type": "manifest_fetched",
                 "data": {
-                    "image_url": None,
+                    "canvases": [],
                     "error": "No manifest URL provided"
                 }
             }))
             return
 
-        image_url, error = fetch_manifest(manifest_url)
+        canvases, error = fetch_manifest(manifest_url)
 
         await websocket.send(json.dumps({
             "type": "manifest_fetched",
             "data": {
-                "image_url": image_url,
+                "canvases": canvases,
                 "error": error
             }
         }))
@@ -526,8 +555,8 @@ async def handle_message(websocket, message_data):
             "item_index": None,
             "title": None,
             "text": None,
-            "manifest_url": None,
-            "image_url": None,
+            "canvases": [],
+            "canvas_index": 0,
             "start_time": None,
             "speed": 1,
             "paused": False,
@@ -553,7 +582,7 @@ async def handle_message(websocket, message_data):
                     "title": item["title"],
                     "text": item["text"],
                     "manifest_url": item.get("manifest_url"),
-                    "image_url": item.get("image_url")
+                    "canvases": item.get("canvases", [])
                 }
                 valid_items.append(valid_item)
 
