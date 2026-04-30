@@ -116,12 +116,12 @@ class SpecIdolClient {
         this.send('set_judge_name', { name });
     }
 
-    addItem(title, text, manifestUrl = null, imageUrl = null) {
+    addItem(title, text, manifestUrl = null, canvases = []) {
         this.send('add_item', {
             title,
             text,
             manifest_url: manifestUrl,
-            image_url: imageUrl
+            canvases: canvases
         });
     }
 
@@ -135,6 +135,10 @@ class SpecIdolClient {
 
     fetchManifest(manifestUrl) {
         this.send('fetch_manifest', { manifest_url: manifestUrl });
+    }
+
+    canvasAdvance(direction) {
+        this.send('canvas_advance', { direction });
     }
 
     changeSpeed(speed) {
