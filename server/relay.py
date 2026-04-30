@@ -75,16 +75,65 @@ def extract_canvas_info(manifest):
 
     return canvases
 
+def extract_localized_value(value):
+    """Extract string from IIIF v2/v3 localized values (language maps, plain strings, lists)"""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        # v3 language map: {"en": ["Label text"]}
+        # or v2: {"@value": "Label text"}
+        if '@value' in value:
+            return value['@value']
+        for lang_values in value.values():
+            if isinstance(lang_values, list) and lang_values:
+                return str(lang_values[0])
+            if isinstance(lang_values, str):
+                return lang_values
+    if isinstance(value, list) and value:
+        return extract_localized_value(value[0])
+    return None
+
+def extract_manifest_metadata(manifest):
+    """Extract manifest-level metadata (label, description, metadata pairs)"""
+    label = extract_localized_value(manifest.get('label'))
+
+    # Description: v3 uses 'summary', v2 uses 'description'
+    description = extract_localized_value(
+        manifest.get('summary') or manifest.get('description')
+    )
+
+    # Metadata pairs
+    metadata_pairs = []
+    for entry in manifest.get('metadata', []):
+        entry_label = extract_localized_value(entry.get('label'))
+        entry_value = extract_localized_value(entry.get('value'))
+        if entry_label and entry_value:
+            metadata_pairs.append(f"{entry_label}: {entry_value}")
+
+    # Build metadata_text from description + metadata pairs
+    parts = []
+    if description:
+        parts.append(description)
+    parts.extend(metadata_pairs)
+    metadata_text = '\n\n'.join(parts) if parts else None
+
+    return {
+        "label": label,
+        "description": description,
+        "metadata_text": metadata_text
+    }
+
 def fetch_manifest(manifest_url):
-    """Fetch IIIF manifest and extract canvas info"""
+    """Fetch IIIF manifest and extract canvas info and metadata"""
     try:
         with urllib.request.urlopen(manifest_url, timeout=10) as response:
             manifest = json.loads(response.read())
 
         canvases = extract_canvas_info(manifest)
-        return canvases, None
+        metadata = extract_manifest_metadata(manifest)
+        return canvases, metadata, None
     except Exception as e:
-        return [], str(e)
+        return [], {}, str(e)
 
 # Multiple sessions (in memory)
 sessions = {}  # {code: session_data}
@@ -457,12 +506,13 @@ async def handle_message(websocket, message_data):
             }))
             return
 
-        canvases, error = fetch_manifest(manifest_url)
+        canvases, metadata, error = fetch_manifest(manifest_url)
 
         await websocket.send(json.dumps({
             "type": "manifest_fetched",
             "data": {
                 "canvases": canvases,
+                "metadata": metadata,
                 "error": error
             }
         }))

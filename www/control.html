@@ -472,11 +472,14 @@
             <div id="textProgress" class="text-progress" role="status" aria-live="polite"></div>
         </div>
         <div class="story-text-column">
-            <div id="osdViewerContainer" style="display: none; margin-bottom: 1rem;">
+            <div id="osdViewerContainer" style="display: none; position: relative;">
                 <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--soviet-gold); margin-bottom: 0.25rem; display: none;"></div>
                 <div id="osdViewer" style="width: 100%; height: 200px; background: var(--black);"></div>
+                <div id="textOverlay" style="position: absolute; bottom: 0.5rem; left: 0.5rem; right: 0.5rem; max-height: 60%; overflow-y: auto; pointer-events: none; z-index: 10;">
+                    <div class="story-text" id="liveStoryText"></div>
+                </div>
             </div>
-            <div class="story-text" id="liveStoryText">
+            <div id="textOnlyContainer" class="story-text">
                 <span class="empty-text">Metadata paragraphs appear here during round...</span>
             </div>
         </div>
@@ -569,6 +572,41 @@
         let editingItemIndex = null;
         let currentParagraphProgress = { position: 0, total: 0 };
         let osdViewer = null;
+
+        // Soviet-themed SVG icons for OSD navigation buttons
+        function osdIcon(svg, color = '#d4a574') {
+            return 'data:image/svg+xml,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${svg}</svg>`
+            ).replace(/%23/g, '#');
+        }
+
+        const OSD_NAV_IMAGES = {
+            zoomIn: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#1a1a1a" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#fff" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            zoomOut: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            home: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#fff" stroke-width="2"/>')
+            },
+            fullpage: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#fff" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#fff" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#fff" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#fff" stroke-width="2"/>')
+            }
+        };
+
         let formCanvases = []; // canvases stored from manifest fetch, used when adding item
         let currentCanvases = []; // canvases for current round
         let currentCanvasIndex = 0;
@@ -593,7 +631,8 @@
                 gestureSettingsMouse: { scrollToZoom: true },
                 animationTime: prefersReducedMotion ? 0 : 1.2,
                 springStiffness: prefersReducedMotion ? 100 : 6.5,
-                prefixUrl: ''
+                prefixUrl: '',
+                navImages: OSD_NAV_IMAGES
             });
         }
 
@@ -725,11 +764,24 @@
                 status.style.color = 'var(--soviet-gold)';
                 formCanvases = [];
             }
+
+            // Auto-fill title and text from manifest metadata
+            if (data.metadata) {
+                const titleField = document.getElementById('itemTitle');
+                const textField = document.getElementById('itemText');
+                if (data.metadata.label && !titleField.value.trim()) {
+                    titleField.value = data.metadata.label;
+                }
+                if (data.metadata.metadata_text && !textField.value.trim()) {
+                    textField.value = data.metadata.metadata_text;
+                }
+            }
         });
 
         client.on('round_started', (data) => {
             updateStatus('running');
             document.getElementById('liveStoryText').innerHTML = '';
+            document.getElementById('textOnlyContainer').innerHTML = '';
 
             // Set up canvases
             currentCanvases = data.canvases || [];
@@ -745,13 +797,13 @@
                 destroyOsdViewer();
             }
 
-            updateCanvasControls();
-
             if (sessionState) {
                 sessionState.current_round.status = 'running';
                 sessionState.current_round.text_paragraph_count = data.text_paragraph_count || 0;
                 renderItemQueue();
             }
+
+            updateCanvasControls();
             updateSelectedItemDisplay();
             updateParagraphProgress(0, data.text_paragraph_count || 0);
         });
@@ -944,39 +996,55 @@
             }
         }
 
+        function getTextTarget() {
+            // When OSD viewer is visible, use overlay; otherwise text-only container
+            const osdContainer = document.getElementById('osdViewerContainer');
+            if (osdContainer && osdContainer.style.display !== 'none') {
+                return document.getElementById('liveStoryText');
+            }
+            return document.getElementById('textOnlyContainer');
+        }
+
         function appendParagraph(paragraph) {
-            const textEl = document.getElementById('liveStoryText');
+            const textEl = getTextTarget();
             const placeholder = textEl.querySelector('.empty-text');
             if (placeholder) placeholder.remove();
 
             const paraEl = document.createElement('div');
             paraEl.className = 'text-line';
-            paraEl.style.marginBottom = '1rem';
+            paraEl.style.marginBottom = '0.5rem';
             paraEl.style.padding = '0.5rem';
+            paraEl.style.background = currentCanvases.length > 0 ? 'rgba(0, 0, 0, 0.8)' : 'transparent';
             paraEl.style.borderLeft = '2px solid var(--soviet-ochre)';
             paraEl.textContent = paragraph;
 
             textEl.appendChild(paraEl);
 
             setTimeout(() => {
-                paraEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                if (currentCanvases.length > 0) {
+                    const overlay = document.getElementById('textOverlay');
+                    if (overlay) overlay.scrollTop = overlay.scrollHeight;
+                } else {
+                    paraEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             }, 100);
         }
 
         function clearItemText() {
-            const textEl = document.getElementById('liveStoryText');
+            document.getElementById('liveStoryText').innerHTML = '';
+            const textOnly = document.getElementById('textOnlyContainer');
             const index = sessionState ? sessionState.current_round.item_index : null;
 
             if (index !== null && sessionState.items[index]) {
-                textEl.innerHTML = '';
+                textOnly.innerHTML = '';
                 const preview = document.createElement('div');
                 preview.style.opacity = '0.3';
                 preview.style.whiteSpace = 'pre-wrap';
                 preview.style.lineHeight = '1.7';
                 preview.textContent = sessionState.items[index].text;
-                textEl.appendChild(preview);
+                textOnly.appendChild(preview);
             } else {
-                textEl.innerHTML = '<span class="empty-text">Metadata paragraphs appear here during round...</span>';
+                textOnly.innerHTML = '<span class="empty-text">Metadata paragraphs appear here during round...</span>';
             }
         }
 

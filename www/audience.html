@@ -47,36 +47,41 @@
         #osdViewerContainer {
             display: none;
             width: 100%;
-            margin: 0 auto 2rem;
+            flex: 1;
+            flex-direction: column;
+            position: relative;
         }
 
         #canvasLabel {
             font-size: var(--text-body);
             color: var(--soviet-gold);
             text-align: center;
-            margin-bottom: 0.5rem;
+            padding: 0.5rem 0;
             display: none;
         }
 
         #osdViewer {
             width: 100%;
-            height: 60vh;
+            flex: 1;
+            min-height: 200px;
             background: var(--black);
         }
 
-        .story-text-container {
-            flex: 1;
+        #textOverlay {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            max-height: 50%;
             overflow-y: auto;
-            scroll-behavior: smooth;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            position: relative;
+            pointer-events: none;
+            z-index: 10;
         }
 
-        .story-text {
-            font-size: 2rem;
-            line-height: 1.7;
-            white-space: pre-wrap;
+        #metadataParagraphs {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
 
         .text-line {
@@ -157,16 +162,11 @@
     </header>
 
     <main class="page-content tessellated-bg">
-        <div id="roundQuestion" style="font-size: var(--text-heading); color: var(--soviet-gold); margin: 2rem 0; text-align: center; display: none;"></div>
-
         <div id="osdViewerContainer" class="geometric-frame" style="padding: 1rem;">
             <div id="canvasLabel"></div>
             <div id="osdViewer"></div>
-        </div>
-
-        <div class="story-text-container">
-            <div class="story-text" id="storyText" aria-live="polite" aria-relevant="additions">
-                <div id="metadataParagraphs"></div>
+            <div id="textOverlay">
+                <div id="metadataParagraphs" aria-live="polite" aria-relevant="additions"></div>
             </div>
         </div>
     </main>
@@ -194,6 +194,40 @@
         let connectedJudges = [];  // [{id, name}, ...]
         let osdViewer = null;
 
+        // Soviet-themed SVG icons for OSD navigation buttons
+        function osdIcon(svg, color = '#d4a574') {
+            return 'data:image/svg+xml,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${svg}</svg>`
+            ).replace(/%23/g, '#');
+        }
+
+        const OSD_NAV_IMAGES = {
+            zoomIn: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#1a1a1a" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#fff" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            zoomOut: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            home: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#fff" stroke-width="2"/>')
+            },
+            fullpage: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#fff" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#fff" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#fff" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#fff" stroke-width="2"/>')
+            }
+        };
+
         function getTileSource(canvas) {
             if (canvas.service_url) {
                 return canvas.service_url + '/info.json';
@@ -214,7 +248,8 @@
                 gestureSettingsMouse: { scrollToZoom: true },
                 animationTime: prefersReducedMotion ? 0 : 1.2,
                 springStiffness: prefersReducedMotion ? 100 : 6.5,
-                prefixUrl: ''
+                prefixUrl: '',
+                navImages: OSD_NAV_IMAGES
             });
         }
 
@@ -390,11 +425,6 @@
         function startRound(roundData) {
             resetView();
 
-            // Show round question
-            const questionEl = document.getElementById('roundQuestion');
-            questionEl.textContent = roundData.title || 'Untitled';
-            questionEl.style.display = 'block';
-
             // Header title
             const titleEl = document.getElementById('itemTitle');
             titleEl.textContent = roundData.title || 'Untitled';
@@ -404,7 +434,7 @@
             const canvases = roundData.canvases || [];
             const container = document.getElementById('osdViewerContainer');
             if (canvases.length > 0) {
-                container.style.display = 'block';
+                container.style.display = 'flex';
                 const canvasIndex = roundData.canvas_index || 0;
                 showCanvasLabel(canvases[canvasIndex].label);
                 initOsdViewer(canvases[canvasIndex]);
@@ -421,16 +451,18 @@
 
             const paraEl = document.createElement('div');
             paraEl.className = 'text-line';
-            paraEl.style.marginBottom = '1.5rem';
-            paraEl.style.padding = '1rem';
+            paraEl.style.padding = '0.75rem 1rem';
+            paraEl.style.background = 'rgba(0, 0, 0, 0.8)';
             paraEl.style.border = '1px solid var(--soviet-ochre)';
-            paraEl.style.background = 'rgba(212, 165, 116, 0.05)';
+            paraEl.style.fontSize = '1.4rem';
+            paraEl.style.lineHeight = '1.6';
             paraEl.textContent = paragraph;
 
             container.appendChild(paraEl);
 
             setTimeout(() => {
-                paraEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                const overlay = document.getElementById('textOverlay');
+                overlay.scrollTop = overlay.scrollHeight;
             }, 100);
         }
 
@@ -470,7 +502,6 @@
             titleEl.textContent = 'Waiting for item...';
             titleEl.classList.add('waiting');
 
-            document.getElementById('roundQuestion').style.display = 'none';
             document.getElementById('osdViewerContainer').style.display = 'none';
             document.getElementById('canvasLabel').style.display = 'none';
             document.getElementById('metadataParagraphs').innerHTML = '';

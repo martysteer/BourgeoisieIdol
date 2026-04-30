@@ -169,6 +169,40 @@
         let connectedJudges = [];  // [{id, name}, ...]
         let osdViewer = null;
 
+        // Soviet-themed SVG icons for OSD navigation buttons
+        function osdIcon(svg, color = '#d4a574') {
+            return 'data:image/svg+xml,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${svg}</svg>`
+            ).replace(/%23/g, '#');
+        }
+
+        const OSD_NAV_IMAGES = {
+            zoomIn: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#1a1a1a" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#fff" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            zoomOut: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            home: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#fff" stroke-width="2"/>')
+            },
+            fullpage: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#fff" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#fff" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#fff" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#fff" stroke-width="2"/>')
+            }
+        };
+
         function getTileSource(canvas) {
             if (canvas.service_url) {
                 return canvas.service_url + '/info.json';
@@ -189,7 +223,8 @@
                 gestureSettingsMouse: { scrollToZoom: true },
                 animationTime: prefersReducedMotion ? 0 : 1.2,
                 springStiffness: prefersReducedMotion ? 100 : 6.5,
-                prefixUrl: ''
+                prefixUrl: '',
+                navImages: OSD_NAV_IMAGES
             });
         }
 
