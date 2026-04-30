@@ -11,6 +11,7 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"></noscript>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="modal.css">
+    <script src="openseadragon.min.js"></script>
     <style>
         body {
             font-family: 'Press Start 2P', cursive;
@@ -130,8 +131,9 @@
 
     <main class="page-content" id="main" role="main">
         <div class="story-title" id="itemTitle" aria-live="polite"></div>
-        <div id="imageContainer" class="geometric-frame" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
-            <img id="roundImage" src="" alt="Item image" style="width: 100%; height: auto; display: block;">
+        <div id="osdViewerContainer" class="geometric-frame" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
+            <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--soviet-gold); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
+            <div id="osdViewer" style="width: 100%; height: 250px;"></div>
         </div>
         <div id="metadataParagraphs" style="max-width: 400px; margin: 0 auto; text-align: left;"></div>
         <div class="waiting">Waiting for round to start...</div>
@@ -165,6 +167,48 @@
         let myJudgeId = null;
         let myJudgeName = null;
         let connectedJudges = [];  // [{id, name}, ...]
+        let osdViewer = null;
+
+        function getTileSource(canvas) {
+            if (canvas.service_url) {
+                return canvas.service_url + '/info.json';
+            }
+            return { type: 'image', url: canvas.image_url };
+        }
+
+        function initOsdViewer(canvas) {
+            destroyOsdViewer();
+
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            osdViewer = OpenSeadragon({
+                element: document.getElementById('osdViewer'),
+                tileSources: getTileSource(canvas),
+                showNavigator: false,
+                showNavigationControl: true,
+                gestureSettingsMouse: { scrollToZoom: true },
+                animationTime: prefersReducedMotion ? 0 : 1.2,
+                springStiffness: prefersReducedMotion ? 100 : 6.5,
+                prefixUrl: ''
+            });
+        }
+
+        function destroyOsdViewer() {
+            if (osdViewer) {
+                osdViewer.destroy();
+                osdViewer = null;
+            }
+        }
+
+        function showCanvasLabel(label) {
+            const labelEl = document.getElementById('canvasLabel');
+            if (label) {
+                labelEl.textContent = label;
+                labelEl.style.display = 'block';
+            } else {
+                labelEl.style.display = 'none';
+            }
+        }
 
         // localStorage: read saved name (2hr expiry)
         const TWO_HOURS = 2 * 60 * 60 * 1000;
@@ -300,6 +344,17 @@
             if (timer) timer.stop();
         });
 
+        client.on('canvas_advanced', (data) => {
+            if (data.canvas) {
+                showCanvasLabel(data.canvas.label);
+                if (osdViewer) {
+                    osdViewer.open(getTileSource(data.canvas));
+                } else {
+                    initOsdViewer(data.canvas);
+                }
+            }
+        });
+
         client.on('round_reset', () => {
             resetView();
         });
@@ -376,14 +431,17 @@
             buzzed = false;
             document.getElementById('itemTitle').textContent = roundData.title || '';
 
-            // Show image if available
-            const imageContainer = document.getElementById('imageContainer');
-            const imageEl = document.getElementById('roundImage');
-            if (roundData.image_url) {
-                imageEl.src = roundData.image_url;
-                imageContainer.style.display = 'block';
+            // Show OSD viewer if canvases available
+            const canvases = roundData.canvases || [];
+            const container = document.getElementById('osdViewerContainer');
+            if (canvases.length > 0) {
+                container.style.display = 'block';
+                const canvasIndex = roundData.canvas_index || 0;
+                showCanvasLabel(canvases[canvasIndex].label);
+                initOsdViewer(canvases[canvasIndex]);
             } else {
-                imageContainer.style.display = 'none';
+                container.style.display = 'none';
+                destroyOsdViewer();
             }
 
             // Clear metadata
@@ -391,14 +449,14 @@
             if (metaContainer) metaContainer.innerHTML = '';
 
             const main = document.getElementById('main');
-            // Keep the image/metadata elements, replace only the interactive area
+            // Keep the persistent elements, replace only the interactive area
             const existingTitle = document.getElementById('itemTitle');
-            const existingImage = document.getElementById('imageContainer');
+            const existingViewer = document.getElementById('osdViewerContainer');
             const existingMeta = document.getElementById('metadataParagraphs');
 
             main.innerHTML = '';
             main.appendChild(existingTitle);
-            main.appendChild(existingImage);
+            main.appendChild(existingViewer);
             main.appendChild(existingMeta);
 
             const buzzArea = document.createElement('div');
@@ -477,12 +535,14 @@
         function resetView() {
             if (timer) timer.stop();
             buzzed = false;
+            destroyOsdViewer();
 
             const main = document.getElementById('main');
             main.innerHTML = `
                 <div class="story-title" id="itemTitle" aria-live="polite"></div>
-                <div id="imageContainer" class="geometric-frame" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
-                    <img id="roundImage" src="" alt="Item image" style="width: 100%; height: auto; display: block;">
+                <div id="osdViewerContainer" class="geometric-frame" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
+                    <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--soviet-gold); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
+                    <div id="osdViewer" style="width: 100%; height: 250px;"></div>
                 </div>
                 <div id="metadataParagraphs" style="max-width: 400px; margin: 0 auto; text-align: left;"></div>
                 <div class="waiting">Waiting for round to start...</div>
