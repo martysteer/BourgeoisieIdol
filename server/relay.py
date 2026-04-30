@@ -9,32 +9,82 @@ from datetime import datetime
 import websockets
 from websockets.server import serve
 
-def extract_image_url(manifest):
-    """Extract first image URL from IIIF manifest (v2 or v3)"""
+def extract_canvas_info(manifest):
+    """Extract canvas info (label, image_url, service_url) from all canvases in IIIF manifest (v2 or v3)"""
+    canvases = []
+
     # IIIF Presentation API 3.0
-    try:
-        return manifest['items'][0]['items'][0]['items'][0]['body']['id']
-    except (KeyError, IndexError, TypeError):
-        pass
+    if 'items' in manifest:
+        for canvas in manifest.get('items', []):
+            try:
+                body = canvas['items'][0]['items'][0]['body']
+                image_url = body.get('id')
+                label_obj = canvas.get('label', {})
+                # v3 labels are language maps: {"en": ["Label"]}
+                label = None
+                if isinstance(label_obj, dict):
+                    for lang_values in label_obj.values():
+                        if isinstance(lang_values, list) and lang_values:
+                            label = lang_values[0]
+                            break
+                elif isinstance(label_obj, str):
+                    label = label_obj
+                # Extract service URL for IIIF Image API
+                service_url = None
+                service = body.get('service', [])
+                if isinstance(service, list) and service:
+                    service_url = service[0].get('id') or service[0].get('@id')
+                elif isinstance(service, dict):
+                    service_url = service.get('id') or service.get('@id')
+                canvases.append({
+                    "label": label,
+                    "image_url": image_url,
+                    "service_url": service_url
+                })
+            except (KeyError, IndexError, TypeError):
+                continue
+        if canvases:
+            return canvases
 
     # IIIF Presentation API 2.1
-    try:
-        return manifest['sequences'][0]['canvases'][0]['images'][0]['resource']['@id']
-    except (KeyError, IndexError, TypeError):
-        pass
+    for sequence in manifest.get('sequences', []):
+        for canvas in sequence.get('canvases', []):
+            try:
+                image_resource = canvas['images'][0]['resource']
+                image_url = image_resource.get('@id')
+                label = canvas.get('label')
+                if isinstance(label, dict):
+                    # v2 can have {"@value": "Label"}
+                    label = label.get('@value', str(label))
+                elif isinstance(label, list) and label:
+                    label = label[0] if isinstance(label[0], str) else label[0].get('@value', str(label[0]))
+                # Extract service URL for IIIF Image API
+                service_url = None
+                service = image_resource.get('service')
+                if isinstance(service, list) and service:
+                    service_url = service[0].get('@id') or service[0].get('id')
+                elif isinstance(service, dict):
+                    service_url = service.get('@id') or service.get('id')
+                canvases.append({
+                    "label": label,
+                    "image_url": image_url,
+                    "service_url": service_url
+                })
+            except (KeyError, IndexError, TypeError):
+                continue
 
-    return None
+    return canvases
 
 def fetch_manifest(manifest_url):
-    """Fetch IIIF manifest and extract image URL"""
+    """Fetch IIIF manifest and extract canvas info"""
     try:
         with urllib.request.urlopen(manifest_url, timeout=10) as response:
             manifest = json.loads(response.read())
 
-        image_url = extract_image_url(manifest)
-        return image_url, None
+        canvases = extract_canvas_info(manifest)
+        return canvases, None
     except Exception as e:
-        return None, str(e)
+        return [], str(e)
 
 # Multiple sessions (in memory)
 sessions = {}  # {code: session_data}
