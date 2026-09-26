@@ -11,6 +11,7 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"></noscript>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="modal.css">
+    <script src="openseadragon.min.js"></script>
     <style>
         h2 {
             font-size: var(--text-subheading);
@@ -534,7 +535,7 @@
         }
 
         /* Management queue items (different from main queue - clickable for editing) */
-        #mgmtStoryQueue .story-item.editing {
+        #mgmtItemQueue .story-item.editing {
             color: var(--neon-yellow);
             border-left: 3px solid var(--neon-yellow);
             padding-left: calc(0.5rem - 3px);
@@ -547,13 +548,13 @@
             <div class="page-label">CONTROLLING</div>
             <div class="header-info">
                 <span class="code" id="sessionCode">----</span> |
-                <span id="storyCount">0</span> stories |
+                <span id="itemCount">0</span> items |
                 <span id="judgeCount">0</span> judges |
                 <span id="audienceCount">0</span> audience
             </div>
         </div>
         <div class="header-timer" id="headerTimer" style="display: none;">0:00.0</div>
-        <div class="header-context waiting" id="headerStoryTitle">No story selected</div>
+        <div class="header-context waiting" id="headerItemTitle">No item selected</div>
     </header>
 
     <div id="countdown-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1000;"></div>
@@ -565,7 +566,10 @@
             <div id="currentStatus" class="status-text" role="status" aria-live="polite">Status: Waiting</div>
             <div class="controls">
                 <button onclick="startRound()" id="startBtn">Start Round</button>
-                <button onclick="advanceText()" id="advanceBtn" class="btn-advance" disabled>Advance Text</button>
+                <button onclick="advanceText()" id="advanceBtn" class="btn-advance" disabled>Reveal Paragraph</button>
+                <button onclick="advanceCanvas('next')" id="nextCanvasBtn" style="display:none;" disabled>Next Canvas &#9654;</button>
+                <button onclick="advanceCanvas('prev')" id="prevCanvasBtn" style="display:none;" disabled>&#9664; Prev Canvas</button>
+                <span id="canvasProgress" style="display:none; font-size: var(--text-caption); white-space: nowrap;"></span>
                 <button onclick="togglePause()" id="pauseBtn" class="btn-pause" disabled>Pause</button>
                 <button onclick="closeRound()" id="closeBtn" class="btn-reset">Close Round</button>
             </div>
@@ -582,39 +586,51 @@
             </details>
         </div>
         <div class="story-text-column">
+            <div id="osdViewerContainer" style="display: none; position: relative; margin-bottom: 1rem;">
+                <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem;"></div>
+                <div id="osdViewer" style="width: 100%; height: 200px; background: var(--black);"></div>
+            </div>
             <div class="story-text" id="liveStoryText">
-                <span class="empty-text">Story text appears here during round...</span>
+                <span class="empty-text">Item text appears here during round...</span>
             </div>
             <div class="outcome" id="outcome" role="alert" aria-live="assertive"></div>
         </div>
     </div>
 
-    <!-- Story management (expanded by default) -->
+    <!-- Item management (expanded by default) -->
     <div class="collapsible story-management" id="storyManagement">
         <h2 onclick="toggleSection('storyManagement')">
-            <span class="arrow">▼</span>
-            Story Queue
+            <span class="arrow">&#9660;</span>
+            Item Queue
         </h2>
         <div class="section-content">
             <div class="management-section">
-                <ul class="story-queue" id="mgmtStoryQueue"></ul>
+                <ul class="story-queue" id="mgmtItemQueue"></ul>
             </div>
 
             <div class="management-section">
-                <button onclick="addNewStory()" class="btn-add-story" style="font-size:var(--text-caption);padding:0.4rem 0.8rem;">+ Add Story</button>
-                <details class="story-edit-details" id="storyEditPanel">
-                    <summary style="cursor:pointer;font-size:var(--text-caption);opacity:0.7;" id="storyFormTitle">Add / Edit Story</summary>
+                <button onclick="addNewItem()" class="btn-add-story" style="font-size:var(--text-caption);padding:0.4rem 0.8rem;">+ Add Item</button>
+                <details class="story-edit-details" id="itemEditPanel">
+                    <summary style="cursor:pointer;font-size:var(--text-caption);opacity:0.7;" id="itemFormTitle">Add / Edit Item</summary>
                     <div class="form-group">
                         <label>Title:</label>
-                        <input type="text" id="storyTitle" placeholder="Story title">
+                        <input type="text" id="itemTitleInput" placeholder="Item title">
+                    </div>
+                    <div class="form-group">
+                        <label>IIIF Manifest URL (optional):</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="manifestUrl" placeholder="https://example.org/manifest.json" style="flex: 1;">
+                            <button type="button" id="fetchManifestBtn" onclick="fetchManifestUrl()">Fetch</button>
+                        </div>
+                        <span id="manifestStatus" style="font-size: var(--text-caption); display: block; margin-top: 0.25rem;"></span>
                     </div>
                     <div class="form-group">
                         <label>Text:</label>
-                        <textarea id="storyText" placeholder="Story text..."></textarea>
+                        <textarea id="itemText" placeholder="Item text..."></textarea>
                     </div>
                     <div class="edit-actions">
-                        <button onclick="saveStory()" id="saveStoryBtn" disabled>Update</button>
-                        <button onclick="removeEditingStory()" id="removeStoryBtn" class="btn-reset">Remove</button>
+                        <button onclick="saveItem()" id="saveItemBtn" disabled>Update</button>
+                        <button onclick="removeEditingItem()" id="removeItemBtn" class="btn-reset">Remove</button>
                     </div>
                 </details>
                 <details style="margin-top: 0.5rem;">
@@ -634,7 +650,7 @@
     <!-- TERTIARY: History (collapsed by default) -->
     <div class="collapsible collapsed" id="historySection">
         <h2 onclick="toggleSection('historySection')">
-            <span class="arrow">▼</span>
+            <span class="arrow">&#9660;</span>
             History
         </h2>
         <div class="section-content">
@@ -649,7 +665,7 @@
         <!-- Session management (collapsed, danger zone) -->
         <div class="collapsible session-management collapsed" id="sessionManagementSection">
             <h2 onclick="toggleSection('sessionManagementSection')">
-                <span class="arrow">▼</span>
+                <span class="arrow">&#9660;</span>
                 Session Management (Danger Zone)
             </h2>
             <div class="section-content">
@@ -667,12 +683,110 @@
         const params = getUrlParams();
         const client = new SpecIdolClient();
         let sessionState = null;
-        let editingStoryIndex = null;
+        let editingItemIndex = null;
         let currentLineProgress = { position: 0, total: 0 };
         let audienceQRVisible = false;
         let timer = null;
         let countdown = null;
         let formDirty = false;
+
+        // --- OSD viewer ---
+        let osdViewer = null;
+        let formCanvases = [];
+
+        function osdIcon(svg) {
+            return 'data:image/svg+xml,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${svg}</svg>`
+            ).replace(/%23/g, '#');
+        }
+
+        const OSD_NAV_IMAGES = {
+            zoomIn: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#0f0" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#0f0" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#1a1a1a" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#fff" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            zoomOut: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            home: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#fff" stroke-width="2"/>')
+            },
+            fullpage: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#fff" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#fff" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#fff" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#fff" stroke-width="2"/>')
+            }
+        };
+
+        function getTileSource(canvas) {
+            if (canvas.service_url) return canvas.service_url + '/info.json';
+            return { type: 'image', url: canvas.image_url };
+        }
+
+        function initOsdViewer(canvas) {
+            destroyOsdViewer();
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            osdViewer = OpenSeadragon({
+                element: document.getElementById('osdViewer'),
+                tileSources: getTileSource(canvas),
+                showNavigator: false,
+                showNavigationControl: true,
+                gestureSettingsMouse: { scrollToZoom: true },
+                animationTime: prefersReducedMotion ? 0 : 1.2,
+                springStiffness: prefersReducedMotion ? 100 : 6.5,
+                prefixUrl: '',
+                navImages: OSD_NAV_IMAGES
+            });
+        }
+
+        function destroyOsdViewer() {
+            if (osdViewer) { osdViewer.destroy(); osdViewer = null; }
+        }
+
+        function showCanvasLabel(label) {
+            const el = document.getElementById('canvasLabel');
+            if (!el) return;
+            if (label) { el.textContent = label; el.style.display = 'block'; }
+            else { el.style.display = 'none'; }
+        }
+
+        function fetchManifestUrl() {
+            const url = document.getElementById('manifestUrl').value.trim();
+            if (!url) return;
+            document.getElementById('manifestStatus').textContent = 'Fetching...';
+            client.fetchManifest(url);
+        }
+
+        function advanceCanvas(direction) {
+            client.canvasAdvance(direction);
+        }
+
+        function updateCanvasControls(canvasIndex, totalCanvases) {
+            const prev = document.getElementById('prevCanvasBtn');
+            const next = document.getElementById('nextCanvasBtn');
+            const progress = document.getElementById('canvasProgress');
+            if (totalCanvases > 1) {
+                prev.style.display = '';
+                next.style.display = '';
+                progress.style.display = '';
+                progress.textContent = `Canvas ${canvasIndex + 1} / ${totalCanvases}`;
+                prev.disabled = (canvasIndex <= 0);
+                next.disabled = (canvasIndex >= totalCanvases - 1);
+            } else {
+                prev.style.display = 'none';
+                next.style.display = 'none';
+                progress.style.display = 'none';
+            }
+        }
 
         client.connect();
 
@@ -700,9 +814,9 @@
             updateSessionCounts(data);
 
             // Initialize status on page load
-            const hasStory = sessionState.current_round.story_index !== null;
-            if (!hasStory && sessionState.current_round.status === 'waiting') {
-                updateStatus('waiting'); // Will show "select a story"
+            const hasItem = sessionState.current_round.item_index !== null;
+            if (!hasItem && sessionState.current_round.status === 'waiting') {
+                updateStatus('waiting'); // Will show "select an item"
             }
 
             // Generate judge QR code
@@ -754,7 +868,7 @@
         client.on('countdown_start', (data) => {
             // Track title for history
             if (sessionState) {
-                sessionState.current_round.title = data.story_title;
+                sessionState.current_round.title = data.item_title;
                 sessionState.current_round.status = 'countdown';
                 renderMgmtQueue();
             }
@@ -767,19 +881,28 @@
             timerEl.textContent = '0:00.0';
 
             // Clear dimmed preview and show first paragraph
-            if (data.first_line) {
+            const firstParagraph = data.first_paragraph || data.first_line;
+            if (firstParagraph) {
                 document.getElementById('liveStoryText').innerHTML = '';
-                appendStoryLine(data.first_line);
+                appendStoryLine(firstParagraph);
+            }
+
+            // Show OSD if canvases present
+            if (data.canvases && data.canvases.length > 0) {
+                document.getElementById('osdViewerContainer').style.display = '';
+                initOsdViewer(data.canvases[0]);
+                showCanvasLabel(data.canvases[0].label);
+                updateCanvasControls(0, data.canvases.length);
             }
 
             // Show countdown
             if (countdown) countdown.cancel();
             countdown = new Countdown('countdown-container', () => {
                 // Countdown complete — tell server to start the round
-                const storyIdx = data.story_index !== undefined
-                    ? data.story_index
-                    : (sessionState ? sessionState.current_round.story_index : 0);
-                client.startRound(storyIdx);
+                const itemIdx = data.item_index !== undefined
+                    ? data.item_index
+                    : (sessionState ? sessionState.current_round.item_index : 0);
+                client.startRound(itemIdx);
             });
             countdown.start();
         });
@@ -805,36 +928,71 @@
             }
         });
 
-        client.on('story_added', (data) => {
-            // Controller already updates local state in addStory().
-            // This handler covers stories added by import or future multi-controller.
-            if (sessionState && data.index >= sessionState.stories.length) {
-                sessionState.stories.push({title: data.title, text: ''});
+        client.on('item_added', (data) => {
+            // Controller already updates local state in addItem().
+            // This handler covers items added by import or future multi-controller.
+            if (sessionState && data.index >= sessionState.items.length) {
+                sessionState.items.push({title: data.title, text: ''});
                 renderMgmtQueue();
             }
-            updateSessionCounts({stories: sessionState.stories});
+            updateSessionCounts({items: sessionState.items});
         });
 
-        client.on('story_removed', (data) => {
-            if (sessionState && data.index < sessionState.stories.length) {
-                sessionState.stories.splice(data.index, 1);
+        client.on('item_removed', (data) => {
+            if (sessionState && data.index < sessionState.items.length) {
+                sessionState.items.splice(data.index, 1);
                 renderMgmtQueue();
-                // If we were editing the removed story, close edit panel
-                if (editingStoryIndex === data.index) {
-                    editingStoryIndex = null;
-                    document.getElementById('storyEditPanel').open = false;
-                } else if (editingStoryIndex !== null && editingStoryIndex > data.index) {
-                    editingStoryIndex--;
+                // If we were editing the removed item, close edit panel
+                if (editingItemIndex === data.index) {
+                    editingItemIndex = null;
+                    document.getElementById('itemEditPanel').open = false;
+                } else if (editingItemIndex !== null && editingItemIndex > data.index) {
+                    editingItemIndex--;
                 }
             }
-            updateSessionCounts({stories: sessionState.stories});
+            updateSessionCounts({items: sessionState.items});
         });
 
-        client.on('stories_update', (data) => {
+        client.on('items_update', (data) => {
             if (sessionState) {
-                sessionState.stories = data.stories;
+                sessionState.items = data.items;
                 renderMgmtQueue();
-                updateSessionCounts({stories: data.stories});
+                updateSessionCounts({items: data.items});
+            }
+        });
+
+        client.on('manifest_fetched', (data) => {
+            const status = document.getElementById('manifestStatus');
+            if (data.error) {
+                status.textContent = 'Error: ' + data.error;
+                formCanvases = [];
+                return;
+            }
+            formCanvases = data.canvases || [];
+            status.textContent = formCanvases.length + ' canvas(es) found';
+            if (data.metadata) {
+                const titleInput = document.getElementById('itemTitleInput');
+                const textInput = document.getElementById('itemText');
+                if (titleInput && !titleInput.value && data.metadata.label) {
+                    titleInput.value = data.metadata.label;
+                }
+                if (textInput && !textInput.value && data.metadata.metadata_text) {
+                    textInput.value = data.metadata.metadata_text;
+                }
+            }
+        });
+
+        client.on('canvas_advanced', (data) => {
+            if (data.canvas) {
+                showCanvasLabel(data.canvas.label);
+                if (osdViewer) {
+                    osdViewer.open(getTileSource(data.canvas));
+                } else {
+                    initOsdViewer(data.canvas);
+                }
+            }
+            if (data.canvas_index !== undefined && data.total_canvases !== undefined) {
+                updateCanvasControls(data.canvas_index, data.total_canvases);
             }
         });
 
@@ -853,16 +1011,16 @@
 
             if (sessionState) {
                 sessionState.current_round.status = 'running';
-                sessionState.current_round.text_line_count = data.text_line_count || 0;
+                sessionState.current_round.text_paragraph_count = data.text_paragraph_count || data.text_line_count || 0;
                 renderMgmtQueue();
             }
-            updateSelectedStoryDisplay();
-            updateTextProgress(0, data.text_line_count || 0);
+            updateSelectedItemDisplay();
+            updateTextProgress(0, data.text_paragraph_count || data.text_line_count || 0);
         });
 
         client.on('text_advanced', (data) => {
             updateTextProgress(data.position + 1, data.total);
-            appendStoryLine(data.line);
+            appendStoryLine(data.paragraph || data.line);
         });
 
         client.on('paused', (data) => {
@@ -904,21 +1062,25 @@
         client.on('round_reset', () => {
             updateStatus('waiting');
             hideOutcome();
-            clearStoryText();
+            clearItemText();
             currentLineProgress = { position: 0, total: 0 };
             if (timer) timer.stop();
             if (countdown) countdown.cancel();
             document.getElementById('headerTimer').style.display = 'none';
+            // Destroy OSD and hide canvas controls
+            destroyOsdViewer();
+            document.getElementById('osdViewerContainer').style.display = 'none';
+            updateCanvasControls(0, 0);
             if (sessionState) {
                 sessionState.current_round.status = 'waiting';
-                sessionState.current_round.story_index = null;
-                updateSelectedStoryDisplay();
+                sessionState.current_round.item_index = null;
+                updateSelectedItemDisplay();
                 renderMgmtQueue();
             }
         });
 
         client.on('session_imported', async (data) => {
-            await customAlert(`Imported ${data.story_count} stories`);
+            await customAlert(`Imported ${data.item_count} items`);
             // Trigger refresh by requesting session state
             if (params.code) {
                 client.joinSession(params.code, 'controller');
@@ -939,7 +1101,7 @@
             renderMgmtQueue();
             renderHistory();
             updateStatus(sessionState.current_round.status);
-            updateSelectedStoryDisplay();
+            updateSelectedItemDisplay();
         }
 
         function renderHistory() {
@@ -973,12 +1135,12 @@
                 const statusWord = status === 'paused' ? 'paused' : 'running';
                 statusText = `Status: ${statusWord}, part ${position}/${total}`;
             } else if (status === 'waiting') {
-                const hasStory = sessionState && sessionState.current_round.story_index !== null;
-                statusText = hasStory ? 'Status: waiting' : 'Status: select a story';
+                const hasItem = sessionState && sessionState.current_round.item_index !== null;
+                statusText = hasItem ? 'Status: waiting' : 'Status: select an item';
             } else {
-                // For other states, check if story is selected
-                const hasStory = sessionState && sessionState.current_round.story_index !== null;
-                statusText = hasStory ? `Status: ${status}` : 'Status: select a story';
+                // For other states, check if item is selected
+                const hasItem = sessionState && sessionState.current_round.item_index !== null;
+                statusText = hasItem ? `Status: ${status}` : 'Status: select an item';
             }
 
             statusEl.textContent = statusText;
@@ -1036,33 +1198,33 @@
             document.getElementById('outcome').style.display = 'none';
         }
 
-        function clearStoryText() {
+        function clearItemText() {
             const textEl = document.getElementById('liveStoryText');
-            const index = sessionState ? sessionState.current_round.story_index : null;
+            const index = sessionState ? sessionState.current_round.item_index : null;
 
-            if (index !== null && sessionState.stories[index]) {
-                // Show dimmed preview of full story text
+            if (index !== null && sessionState.items[index]) {
+                // Show dimmed preview of full item text
                 textEl.innerHTML = '';
                 const preview = document.createElement('div');
                 preview.style.opacity = '0.3';
                 preview.style.whiteSpace = 'pre-wrap';
                 preview.style.lineHeight = '1.7';
-                preview.textContent = sessionState.stories[index].text;
+                preview.textContent = sessionState.items[index].text;
                 textEl.appendChild(preview);
             } else {
-                textEl.innerHTML = '<span class="empty-text">Story text appears here during round...</span>';
+                textEl.innerHTML = '<span class="empty-text">Item text appears here during round...</span>';
             }
         }
 
-        // --- Story management (2-column: queue left, edit form right) ---
+        // --- Item management (2-column: queue left, edit form right) ---
 
         function renderMgmtQueue() {
-            const queue = document.getElementById('mgmtStoryQueue');
-            if (!sessionState || !sessionState.stories || sessionState.stories.length === 0) {
+            const queue = document.getElementById('mgmtItemQueue');
+            if (!sessionState || !sessionState.items || sessionState.items.length === 0) {
                 queue.innerHTML = `
                     <li class="empty-state">
-                        No stories yet.
-                        <span class="cta">Click "+ Add Story" below ↓</span>
+                        No items yet.
+                        <span class="cta">Click "+ Add Item" below &#8595;</span>
                     </li>
                 `;
                 return;
@@ -1071,9 +1233,9 @@
             const status = sessionState.current_round.status;
             const roundActive = status === 'running' || status === 'paused';
 
-            queue.innerHTML = sessionState.stories.map((story, i) => {
-                const isCurrent = i === sessionState.current_round.story_index;
-                const editingClass = i === editingStoryIndex ? 'editing' : '';
+            queue.innerHTML = sessionState.items.map((item, i) => {
+                const isCurrent = i === sessionState.current_round.item_index;
+                const editingClass = i === editingItemIndex ? 'editing' : '';
                 const disabledClass = roundActive ? 'disabled' : '';
 
                 // Determine status marker
@@ -1084,7 +1246,7 @@
                 } else if (isCurrent && roundStatus === 'paused') {
                     statusHtml = '<span class="story-status paused">PAUSED</span>';
                 } else if (sessionState.history) {
-                    const entry = sessionState.history.find(h => h.title === story.title);
+                    const entry = sessionState.history.find(h => h.title === item.title);
                     if (entry && entry.outcome === 'victory') {
                         statusHtml = '<span class="story-status victory">SURVIVOR</span>';
                     } else if (entry && entry.outcome === 'defeat') {
@@ -1093,9 +1255,9 @@
                 }
 
                 return `
-                    <li class="story-item ${isCurrent ? 'current' : ''} ${editingClass} ${disabledClass}" onclick="selectStory(${i})">
+                    <li class="story-item ${isCurrent ? 'current' : ''} ${editingClass} ${disabledClass}" onclick="selectItem(${i})">
                         <div class="story-info">
-                            <strong>${i + 1}. ${escapeHtml(story.title)}</strong>
+                            <strong>${i + 1}. ${escapeHtml(item.title)}</strong>
                         </div>
                         ${statusHtml}
                     </li>
@@ -1103,35 +1265,41 @@
             }).join('');
         }
 
-        function editStory(index) {
-            if (!sessionState || !sessionState.stories[index]) return;
+        function editItem(index) {
+            if (!sessionState || !sessionState.items[index]) return;
 
-            const story = sessionState.stories[index];
-            document.getElementById('storyTitle').value = story.title;
-            document.getElementById('storyText').value = story.text;
-            editingStoryIndex = index;
+            const item = sessionState.items[index];
+            document.getElementById('itemTitleInput').value = item.title;
+            document.getElementById('itemText').value = item.text;
+            document.getElementById('manifestUrl').value = item.manifest_url || '';
+            document.getElementById('manifestStatus').textContent = '';
+            formCanvases = item.canvases || [];
+            editingItemIndex = index;
             formDirty = false;
 
-            document.getElementById('storyFormTitle').textContent = 'Edit: ' + story.title;
-            document.getElementById('saveStoryBtn').textContent = 'Update';
-            document.getElementById('saveStoryBtn').disabled = true;
-            document.getElementById('removeStoryBtn').style.display = '';
+            document.getElementById('itemFormTitle').textContent = 'Edit: ' + item.title;
+            document.getElementById('saveItemBtn').textContent = 'Update';
+            document.getElementById('saveItemBtn').disabled = true;
+            document.getElementById('removeItemBtn').style.display = '';
 
             renderMgmtQueue();
         }
 
-        function addNewStory() {
-            editingStoryIndex = null;
+        function addNewItem() {
+            editingItemIndex = null;
             formDirty = false;
-            document.getElementById('storyTitle').value = '';
-            document.getElementById('storyText').value = '';
+            document.getElementById('itemTitleInput').value = '';
+            document.getElementById('itemText').value = '';
+            document.getElementById('manifestUrl').value = '';
+            document.getElementById('manifestStatus').textContent = '';
+            formCanvases = [];
 
-            const panel = document.getElementById('storyEditPanel');
+            const panel = document.getElementById('itemEditPanel');
             panel.open = true;
-            document.getElementById('storyFormTitle').textContent = 'Add Story';
-            document.getElementById('saveStoryBtn').textContent = 'Create';
-            document.getElementById('saveStoryBtn').disabled = false;
-            document.getElementById('removeStoryBtn').style.display = 'none';
+            document.getElementById('itemFormTitle').textContent = 'Add Item';
+            document.getElementById('saveItemBtn').textContent = 'Create';
+            document.getElementById('saveItemBtn').disabled = false;
+            document.getElementById('removeItemBtn').style.display = 'none';
 
             renderMgmtQueue();
         }
@@ -1140,18 +1308,19 @@
         document.getElementById('importExportJson').addEventListener('input', updateImportBtnState);
 
         // Enable save button on edits
-        document.getElementById('storyTitle').addEventListener('input', () => {
+        document.getElementById('itemTitleInput').addEventListener('input', () => {
             formDirty = true;
-            document.getElementById('saveStoryBtn').disabled = false;
+            document.getElementById('saveItemBtn').disabled = false;
         });
-        document.getElementById('storyText').addEventListener('input', () => {
+        document.getElementById('itemText').addEventListener('input', () => {
             formDirty = true;
-            document.getElementById('saveStoryBtn').disabled = false;
+            document.getElementById('saveItemBtn').disabled = false;
         });
 
-        async function saveStory() {
-            const title = document.getElementById('storyTitle').value.trim();
-            const text = document.getElementById('storyText').value.trim();
+        async function saveItem() {
+            const title = document.getElementById('itemTitleInput').value.trim();
+            const text = document.getElementById('itemText').value.trim();
+            const manifestUrl = document.getElementById('manifestUrl').value.trim();
 
             if (!title || !text) {
                 await customAlert('Enter both title and text');
@@ -1167,22 +1336,24 @@
                 return;
             }
 
-            if (editingStoryIndex !== null) {
-                // Update existing story
-                client.send('update_story', {
-                    story_index: editingStoryIndex,
+            if (editingItemIndex !== null) {
+                // Update existing item
+                client.send('update_item', {
+                    item_index: editingItemIndex,
                     title: title,
-                    text: text
+                    text: text,
+                    manifest_url: manifestUrl || null,
+                    canvases: formCanvases
                 });
                 // Optimistic local update
-                sessionState.stories[editingStoryIndex] = {title, text};
+                sessionState.items[editingItemIndex] = {title, text, manifest_url: manifestUrl || null, canvases: formCanvases};
                 renderMgmtQueue();
             } else {
-                // Add new story
-                const wasEmpty = !sessionState || sessionState.stories.length === 0;
-                client.addStory(title, text);
+                // Add new item
+                const wasEmpty = !sessionState || sessionState.items.length === 0;
+                client.addItem(title, text, manifestUrl || null, formCanvases);
                 if (sessionState) {
-                    sessionState.stories.push({title, text});
+                    sessionState.items.push({title, text, manifest_url: manifestUrl || null, canvases: formCanvases});
                     renderMgmtQueue();
                     if (wasEmpty) {
                         document.getElementById('storyManagement').classList.add('collapsed');
@@ -1190,57 +1361,57 @@
                 }
             }
 
-            document.getElementById('saveStoryBtn').disabled = true;
+            document.getElementById('saveItemBtn').disabled = true;
             formDirty = false;
         }
 
-        async function removeEditingStory() {
-            if (editingStoryIndex === null) return;
-            if (await customConfirm('Remove this story?')) {
-                client.removeStory(editingStoryIndex);
-                document.getElementById('storyEditPanel').open = false;
-                editingStoryIndex = null;
+        async function removeEditingItem() {
+            if (editingItemIndex === null) return;
+            if (await customConfirm('Remove this item?')) {
+                client.removeItem(editingItemIndex);
+                document.getElementById('itemEditPanel').open = false;
+                editingItemIndex = null;
             }
         }
 
-        async function selectStory(index) {
+        async function selectItem(index) {
             if (!sessionState) return;
 
-            // Block story selection during active round
+            // Block item selection during active round
             const status = sessionState.current_round.status;
             if (status === 'running' || status === 'paused') {
-                await customAlert('Cannot change story during active round. Close round or wait for it to end.');
+                await customAlert('Cannot change item during active round. Close round or wait for it to end.');
                 return;
             }
 
-            sessionState.current_round.story_index = index;
-            sessionState.current_round.title = sessionState.stories[index].title;
-            updateSelectedStoryDisplay();
-            clearStoryText();
-            editStory(index);
+            sessionState.current_round.item_index = index;
+            sessionState.current_round.title = sessionState.items[index].title;
+            updateSelectedItemDisplay();
+            clearItemText();
+            editItem(index);
         }
 
-        function updateSelectedStoryDisplay() {
-            const headerEl = document.getElementById('headerStoryTitle');
+        function updateSelectedItemDisplay() {
+            const headerEl = document.getElementById('headerItemTitle');
             if (!sessionState) return;
 
-            const index = sessionState.current_round.story_index;
-            if (index !== null && sessionState.stories[index]) {
-                const title = sessionState.stories[index].title;
+            const index = sessionState.current_round.item_index;
+            if (index !== null && sessionState.items[index]) {
+                const title = sessionState.items[index].title;
                 headerEl.textContent = title;
                 headerEl.classList.remove('waiting');
 
-                // Update status when story selected
+                // Update status when item selected
                 const currentStatus = sessionState.current_round.status;
                 if (currentStatus === 'waiting' || currentStatus === 'ended') {
                     updateStatus('waiting');
                 }
             } else {
-                headerEl.textContent = 'No story selected';
+                headerEl.textContent = 'No item selected';
                 headerEl.classList.add('waiting');
 
-                // Update status when no story selected
-                updateStatus('waiting'); // Will become "select a story" in updateStatus
+                // Update status when no item selected
+                updateStatus('waiting'); // Will become "select an item" in updateStatus
             }
         }
 
@@ -1253,13 +1424,13 @@
             const btn = document.getElementById('startBtn');
             if (btn.disabled) return;
 
-            if (!sessionState || sessionState.current_round.story_index === null) {
-                await customAlert('Select a story first');
+            if (!sessionState || sessionState.current_round.item_index === null) {
+                await customAlert('Select an item first');
                 return;
             }
 
             btn.disabled = true;
-            client.send('countdown_start', { story_index: sessionState.current_round.story_index });
+            client.send('countdown_start', { item_index: sessionState.current_round.item_index });
             // Will be re-enabled by round_started event via updateStatus()
         }
 
@@ -1298,7 +1469,7 @@
             }, 300);
         }
 
-        // Keyboard shortcut: spacebar or right arrow to advance text
+        // Keyboard shortcuts: spacebar/right to advance text, up/down for canvas navigation
         document.addEventListener('keydown', (e) => {
             // Don't capture if typing in an input/textarea
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1310,6 +1481,14 @@
             if (e.code === 'Space' || e.code === 'ArrowRight') {
                 e.preventDefault();
                 advanceText();
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                advanceCanvas('prev');
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                advanceCanvas('next');
             }
         });
 
@@ -1327,7 +1506,7 @@
             if (!sessionState) return;
 
             const exportData = {
-                stories: sessionState.stories,
+                items: sessionState.items,
                 config: sessionState.config
             };
 
@@ -1384,7 +1563,7 @@
 
             try {
                 const data = JSON.parse(json);
-                client.importSession(data.stories || [], data.config || {});
+                client.importSession(data.items || [], data.config || {});
                 textarea.value = '';
                 updateImportBtnState();
             } catch (e) {
@@ -1401,8 +1580,8 @@
         }
 
         function updateSessionCounts(data) {
-            if (data.stories !== undefined) {
-                document.getElementById('storyCount').textContent = data.stories.length;
+            if (data.items !== undefined) {
+                document.getElementById('itemCount').textContent = data.items.length;
             }
             if (data.connected_judges !== undefined) {
                 document.getElementById('judgeCount').textContent = data.connected_judges.length;
