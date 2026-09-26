@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controller - SPECULATIVE IDOL</title>
+    <title>Controller - BOURGEOISIE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1080,7 +1080,7 @@
         });
 
         client.on('session_imported', async (data) => {
-            await customAlert(`Imported ${data.item_count} items`);
+            await customAlert(`Imported ${(data.items || []).length} items`);
             // Trigger refresh by requesting session state
             if (params.code) {
                 client.joinSession(params.code, 'controller');
