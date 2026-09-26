@@ -12,6 +12,7 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"></noscript>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="modal.css">
+    <script src="openseadragon.min.js"></script>
     <style>
         body {
             font-family: 'Press Start 2P', cursive;
@@ -118,7 +119,7 @@
             <div class="page-label">JUDGING</div>
             <div class="header-info">
                 <span id="code">----</span> |
-                <span id="storyCount">0</span> stories |
+                <span id="itemCount">0</span> items |
                 <span id="judgeCount">0</span> judges |
                 <span id="audienceCount">0</span> audience
             </div>
@@ -128,7 +129,12 @@
     </header>
 
     <main class="page-content" id="main" role="main">
-        <div class="story-title" id="storyTitle" aria-live="polite"></div>
+        <div class="story-title" id="itemTitle" aria-live="polite"></div>
+        <div id="osdViewerContainer" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
+            <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
+            <div id="osdViewer" style="width: 100%; height: 250px;"></div>
+        </div>
+        <div id="metadataParagraphs" style="max-width: 400px; margin: 0 auto; text-align: left;"></div>
         <div class="waiting">Waiting for round to start...</div>
     </main>
 
@@ -184,6 +190,73 @@
 
         const savedName = getSavedName();
 
+        let osdViewer = null;
+
+        function osdIcon(svg) {
+            return 'data:image/svg+xml,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${svg}</svg>`
+            ).replace(/%23/g, '#');
+        }
+
+        const OSD_NAV_IMAGES = {
+            zoomIn: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#0f0" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#0f0" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#1a1a1a" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#fff" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            zoomOut: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#0f0" stroke-width="3"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
+            },
+            home: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#fff" stroke-width="2"/>')
+            },
+            fullpage: {
+                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#0f0" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#0f0" stroke-width="2"/>'),
+                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#0f0" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
+                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#f00" stroke="#0f0" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#fff" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#fff" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#fff" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#fff" stroke-width="2"/>')
+            }
+        };
+
+        function getTileSource(canvas) {
+            if (canvas.service_url) return canvas.service_url + '/info.json';
+            return { type: 'image', url: canvas.image_url };
+        }
+
+        function initOsdViewer(canvas) {
+            destroyOsdViewer();
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            osdViewer = OpenSeadragon({
+                element: document.getElementById('osdViewer'),
+                tileSources: getTileSource(canvas),
+                showNavigator: false,
+                showNavigationControl: true,
+                gestureSettingsMouse: { scrollToZoom: true },
+                animationTime: prefersReducedMotion ? 0 : 1.2,
+                springStiffness: prefersReducedMotion ? 100 : 6.5,
+                prefixUrl: '',
+                navImages: OSD_NAV_IMAGES
+            });
+        }
+
+        function destroyOsdViewer() {
+            if (osdViewer) { osdViewer.destroy(); osdViewer = null; }
+        }
+
+        function showCanvasLabel(label) {
+            const el = document.getElementById('canvasLabel');
+            if (!el) return;
+            if (label) { el.textContent = label; el.style.display = 'block'; }
+            else { el.style.display = 'none'; }
+        }
+
         client.connect();
 
         client.onConnect = () => {
@@ -200,8 +273,8 @@
                 myJudgeId = data.client_info.judge_id;
                 document.getElementById('code').textContent = data.code || '----';
             }
-            if (data.stories) {
-                document.getElementById('storyCount').textContent = data.stories.length;
+            if (data.items) {
+                document.getElementById('itemCount').textContent = data.items.length;
             }
             // Set initial timer visibility
             if (data.timer_visible === false) {
@@ -269,8 +342,14 @@
             if (countdown) countdown.cancel();
 
             const main = document.getElementById('main');
+            const hasCanvases = data.canvases && data.canvases.length > 0;
             main.innerHTML = `
-                <div class="story-title" id="storyTitle" aria-live="polite">${data.story_title || ''}</div>
+                <div class="story-title" id="itemTitle" aria-live="polite">${data.item_title || ''}</div>
+                ${hasCanvases ? `
+                <div id="osdViewerContainer" style="margin: 0 auto 1rem; max-width: 300px; background: var(--black); padding: 0.5rem;">
+                    <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
+                    <div id="osdViewer" style="width: 100%; height: 250px;"></div>
+                </div>` : ''}
                 <button class="buzz-button" id="buzzButton" onclick="buzz()" aria-label="Buzz out the reader" disabled>
                     BUZZ
                 </button>
@@ -278,6 +357,11 @@
                     <div class="buzz-count" id="buzzCountDisplay" aria-live="polite">0 of ${connectedJudges.length} buzzed</div>
                 </div>
             `;
+            if (hasCanvases) {
+                const canvas = data.canvases[0];
+                initOsdViewer(canvas);
+                showCanvasLabel(canvas.label);
+            }
             renderJudgePanels(false);
 
             // Show header timer (reset to 0)
@@ -351,6 +435,17 @@
 
         client.on('text_advanced', (data) => {
             // Judges don't display text, but handle event to suppress console warning
+        });
+
+        client.on('canvas_advanced', (data) => {
+            if (data.canvas) {
+                showCanvasLabel(data.canvas.label);
+                if (osdViewer) {
+                    osdViewer.open(getTileSource(data.canvas));
+                } else {
+                    initOsdViewer(data.canvas);
+                }
+            }
         });
 
         client.on('speed_changed', (data) => {
@@ -446,13 +541,13 @@
             }
         });
 
-        client.on('story_added', (data) => {
-            const el = document.getElementById('storyCount');
+        client.on('item_added', (data) => {
+            const el = document.getElementById('itemCount');
             el.textContent = (parseInt(el.textContent) || 0) + 1;
         });
 
-        client.on('story_removed', (data) => {
-            const el = document.getElementById('storyCount');
+        client.on('item_removed', (data) => {
+            const el = document.getElementById('itemCount');
             el.textContent = Math.max(0, (parseInt(el.textContent) || 0) - 1);
         });
 
@@ -466,8 +561,14 @@
         function startRound(roundData) {
             buzzed = false;
             const main = document.getElementById('main');
+            const hasCanvases = roundData.canvases && roundData.canvases.length > 0;
             main.innerHTML = `
-                <div class="story-title" id="storyTitle" aria-live="polite">${roundData.title || ''}</div>
+                <div class="story-title" id="itemTitle" aria-live="polite">${roundData.title || ''}</div>
+                ${hasCanvases ? `
+                <div id="osdViewerContainer" style="margin: 0 auto 1rem; max-width: 300px; background: var(--black); padding: 0.5rem;">
+                    <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
+                    <div id="osdViewer" style="width: 100%; height: 250px;"></div>
+                </div>` : ''}
                 <button class="buzz-button" id="buzzButton" onclick="buzz()" aria-label="Buzz out the reader">
                     BUZZ
                 </button>
@@ -475,6 +576,10 @@
                     <div class="buzz-count" id="buzzCountDisplay" aria-live="polite">0 of ${connectedJudges.length} buzzed</div>
                 </div>
             `;
+            if (hasCanvases) {
+                const canvas = roundData.canvases[roundData.canvas_index || 0];
+                if (canvas) { initOsdViewer(canvas); showCanvasLabel(canvas.label); }
+            }
 
             renderJudgePanels(false);
 
@@ -540,8 +645,9 @@
         function resetView() {
             if (timer) timer.stop();
             if (countdown) countdown.cancel();
+            destroyOsdViewer();
             buzzed = false;
-            document.getElementById('main').innerHTML = '<div class="story-title" id="storyTitle" aria-live="polite"></div><div class="waiting">Waiting for round to start...</div>';
+            document.getElementById('main').innerHTML = '<div class="story-title" id="itemTitle" aria-live="polite"></div><div class="waiting">Waiting for round to start...</div>';
             document.getElementById('headerTimer').style.display = 'none';
             document.querySelectorAll('.judge-cell').forEach(cell => {
                 cell.classList.remove('buzzed');
