@@ -3,186 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOURGEOISIE IDOL</title>
+    <title>SPECULATIVE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"></noscript>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="modal.css">
     <style>
-        h1 {
-            margin-bottom: 3rem;
-            text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
-        }
-
-        .container {
-            max-width: 500px;
-            width: 100%;
-        }
-
-        .mode-select {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .join-form {
-            display: none;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            width: 100%;
-            max-width: 800px;
-        }
-
-        .join-form.active {
-            display: grid;
-        }
-
-        .sessions-column {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        #sessionButtons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            align-items: stretch;
-        }
-
-        #sessionButtons button {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
+        body {
             align-items: center;
             justify-content: center;
-            padding: 1.5rem 1rem;
-            min-height: 120px;
+            padding: 2rem;
         }
 
-        #sessionButtons button .session-code {
-            font-size: var(--text-heading);
-            margin-bottom: 0.5rem;
-        }
-
-        #sessionButtons button .session-stats {
-            font-family: 'Courier New', monospace;
-            font-size: var(--text-caption);
-            margin-top: 0.5rem;
-            opacity: 0.7;
+        h1 {
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
             text-align: center;
         }
 
-        .actions-column {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        .session-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+            width: 100%;
+            max-width: 900px;
         }
 
-        .column-header {
-            font-family: 'Press Start 2P', cursive;
-            font-size: var(--text-heading);
+        .session-card {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--neon-green);
+            border-radius: 8px;
+            padding: 1.5rem;
             text-align: center;
-            margin-bottom: 1rem;
-            color: var(--neon-green);
-            text-shadow: 0 0 10px var(--neon-green);
+            cursor: pointer;
+            transition: all 0.3s;
         }
 
-        input[type="text"] {
-            text-transform: uppercase;
-            font-family: 'Press Start 2P', cursive;
-            font-size: var(--text-subheading);
-            text-align: center;
-            letter-spacing: 0.5rem;
-        }
-
-        .error {
-            color: var(--neon-red);
-            text-align: center;
-            padding: 0.5rem;
-            display: none;
-        }
-
-        .error.active {
-            display: block;
-        }
-
-        .btn-controller {
-            background: #440;
-            color: var(--neon-yellow);
+        .session-card:hover {
             border-color: var(--neon-yellow);
-            margin-top: 1rem;
-        }
-
-        .btn-controller:hover:not(:disabled) {
-            background: var(--neon-yellow);
-            color: var(--black);
             box-shadow: 0 0 20px var(--neon-yellow);
         }
 
-        @media (max-width: 900px) {
-            .join-form {
-                grid-template-columns: 1fr;
-            }
+        .session-card .qr-code {
+            margin-bottom: 1rem;
+        }
 
-            #sessionButtons {
+        .session-card .qr-code img {
+            display: inline-block;
+        }
+
+        .session-card .session-code {
+            font-family: 'Press Start 2P', cursive;
+            font-size: var(--text-heading);
+            color: var(--neon-yellow);
+            text-shadow: 0 0 10px var(--neon-yellow);
+            margin-bottom: 0.5rem;
+        }
+
+        .session-card .session-stats {
+            font-family: 'Courier New', monospace;
+            font-size: var(--text-caption);
+            color: var(--neon-green);
+            opacity: 0.7;
+        }
+
+        .session-card .tap-hint {
+            font-family: 'Courier New', monospace;
+            font-size: var(--text-caption);
+            color: var(--neon-green);
+            opacity: 0.5;
+            margin-top: 0.75rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            opacity: 0.7;
+            line-height: 2;
+            max-width: 500px;
+        }
+
+        .btn-create {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--neon-green);
+            color: var(--black);
+            border: 2px solid var(--neon-green);
+            font-family: 'Press Start 2P', cursive;
+            font-size: var(--text-caption);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-green);
+            text-transform: uppercase;
+            z-index: 100;
+        }
+
+        .btn-create:hover {
+            background: var(--black);
+            color: var(--neon-green);
+        }
+
+        @media (max-width: 900px) {
+            .session-grid {
                 grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
-<body class="page-centered">
-    <header class="page-header">
-        <h1>BOURGEOISIE<br>IDOL</h1>
-    </header>
+<body>
+    <h1>SPECULATIVE<br>IDOL</h1>
 
-    <main class="page-content">
-        <div class="container">
-            <div class="mode-select" id="modeSelect">
-                <button onclick="createSession()">Create Session</button>
-                <button onclick="showJoinForm()">Join Session</button>
-            </div>
-
-            <div class="join-form" id="joinForm">
-                <div class="sessions-column">
-                    <div class="column-header">Select Session</div>
-                    <div id="sessionButtons"></div>
-                </div>
-
-                <div class="actions-column">
-                    <div class="column-header">Join As</div>
-                    <button onclick="joinAsAudience()" id="joinAudienceBtn" disabled>Join as Audience</button>
-                    <button onclick="joinAsJudge()" id="joinJudgeBtn" disabled>Join as Judge</button>
-                    <button onclick="joinAsController()" id="joinControllerBtn" disabled class="btn-controller">Join as Controller</button>
-                </div>
-            </div>
-
-            <div class="error" id="error"></div>
-        </div>
-    </main>
-
-    <!-- Modal -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal-box">
-            <div class="modal-message" id="modalMessage"></div>
-            <div class="modal-buttons">
-                <button class="modal-btn" id="modalOk">OK</button>
-                <button class="modal-btn cancel" id="modalCancel">Cancel</button>
-            </div>
-        </div>
+    <div id="sessionGrid" class="session-grid"></div>
+    <div id="emptyState" class="empty-state" style="display: none;">
+        No active sessions.<br>
+        Create one to get started.
     </div>
 
+    <button class="btn-create" onclick="createSession()">Create Session</button>
+
+    <script src="lib/qrcode-generator.js"></script>
     <script src="app.js"></script>
-    <script src="modal.js"></script>
     <script>
         const client = new SpecIdolClient();
-        let selectedCode = null;
 
         client.connect();
+
+        client.onConnect = () => {
+            client.listSessions();
+        };
 
         client.on('session_created', (data) => {
             window.location.href = `control.html?code=${data.code}`;
@@ -196,74 +148,51 @@
             client.createSession();
         }
 
-        function showJoinForm() {
-            document.getElementById('modeSelect').style.display = 'none';
-            document.getElementById('joinForm').classList.add('active');
-            client.listSessions();
-        }
-
         function renderSessions(sessions) {
-            const container = document.getElementById('sessionButtons');
+            const grid = document.getElementById('sessionGrid');
+            const emptyState = document.getElementById('emptyState');
+
             if (sessions.length === 0) {
-                container.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 2rem;">No active sessions</div>';
+                grid.innerHTML = '';
+                emptyState.style.display = '';
                 return;
             }
 
-            container.innerHTML = '';
+            emptyState.style.display = 'none';
+            grid.innerHTML = '';
+
             sessions.forEach(session => {
-                const btn = document.createElement('button');
-                btn.addEventListener('click', () => selectSession(session.code));
-                btn.innerHTML = `
-                    <div class="session-code">${escapeHtml(session.code)}</div>
-                    <div class="session-stats">
-                        ${session.item_count} items | ${session.judge_count} judges | ${session.audience_count} audience
-                    </div>
-                `;
-                container.appendChild(btn);
+                const card = document.createElement('div');
+                card.className = 'session-card';
+
+                // QR code → audience join URL
+                const joinURL = `${window.location.origin}/audience.html?code=${session.code}`;
+                const qrEl = createQRElement(joinURL, session.code, 200);
+
+                const code = document.createElement('div');
+                code.className = 'session-code';
+                code.textContent = session.code;
+
+                const stats = document.createElement('div');
+                stats.className = 'session-stats';
+                stats.textContent = `${session.judge_count} judges · ${session.story_count} stories · ${session.audience_count} audience`;
+
+                const hint = document.createElement('div');
+                hint.className = 'tap-hint';
+                hint.textContent = 'Scan QR or tap to join as audience';
+
+                card.appendChild(qrEl);
+                card.appendChild(code);
+                card.appendChild(stats);
+                card.appendChild(hint);
+
+                // Click card → join as audience directly
+                card.addEventListener('click', () => {
+                    window.location.href = `audience.html?code=${session.code}`;
+                });
+
+                grid.appendChild(card);
             });
-        }
-
-        function selectSession(code) {
-            selectedCode = code;
-            document.getElementById('joinControllerBtn').disabled = false;
-            document.getElementById('joinAudienceBtn').disabled = false;
-            document.getElementById('joinJudgeBtn').disabled = false;
-            document.querySelectorAll('#sessionButtons button').forEach(btn => {
-                const isSelected = btn.querySelector('.session-code').textContent === code;
-                btn.style.background = isSelected ? 'var(--soviet-ochre)' : 'var(--soviet-concrete)';
-                btn.style.color = isSelected ? 'var(--soviet-concrete)' : 'var(--soviet-ochre)';
-            });
-        }
-
-        async function joinAsController() {
-            if (!selectedCode) return;
-            if (await customConfirm("Are you sure you're fair enough to seize control?")) {
-                window.location.href = `control.html?code=${selectedCode}`;
-            }
-        }
-
-        async function joinAsAudience() {
-            if (!selectedCode) return;
-            if (await customConfirm("Do you like to watch?")) {
-                window.location.href = `audience.html?code=${selectedCode}`;
-            }
-        }
-
-        async function joinAsJudge() {
-            if (!selectedCode) return;
-            if (await customConfirm("Is your opinion the truth?")) {
-                window.location.href = `judge.html?code=${selectedCode}`;
-            }
-        }
-
-        function showError(message) {
-            const error = document.getElementById('error');
-            error.textContent = message;
-            error.classList.add('active');
-        }
-
-        function clearError() {
-            document.getElementById('error').classList.remove('active');
         }
     </script>
 </body>

@@ -1,4 +1,4 @@
-/* Shared styles for BOURGEOISIE IDOL */
+/* Shared styles for SPECULATIVE IDOL */
 
 * {
     margin: 0;
@@ -7,18 +7,11 @@
 }
 
 :root {
-    --soviet-ochre: #d4a574;      /* earth tone primary */
-    --soviet-red: #8b1a1a;        /* deep workers' red */
-    --soviet-blue: #2b4c7e;       /* industrial blue */
-    --soviet-gold: #c9a961;       /* mosaic gold accent */
-    --soviet-concrete: #1a1a1a;   /* darker black, concrete feel */
-
-    /* Legacy mappings for compatibility */
-    --neon-green: var(--soviet-ochre);
-    --neon-yellow: var(--soviet-gold);
-    --neon-magenta: var(--soviet-blue);
-    --neon-red: var(--soviet-red);
-    --black: var(--soviet-concrete);
+    --neon-green: #0f0;
+    --neon-yellow: #ff0;
+    --neon-magenta: #f0f;
+    --neon-red: #f00;
+    --black: #000;
 
     /* Typography scale - 1.5x ratio */
     --text-display: 3rem;      /* H1, hero elements */
@@ -112,6 +105,7 @@ input:focus, textarea:focus, select:focus {
 
 .page-locked {
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
 }
 
@@ -250,46 +244,87 @@ input:focus, textarea:focus, select:focus {
     }
 }
 
-/* Soviet Mosaic Geometric Framing */
-
-.geometric-frame {
-    border: 4px solid var(--soviet-ochre);
-    position: relative;
+/* Countdown animation */
+@keyframes countdownPulse {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    40% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    60% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
 }
 
-.geometric-frame::before {
-    content: '';
-    position: absolute;
-    top: -8px;
-    left: -8px;
-    right: -8px;
-    bottom: -8px;
-    border: 2px solid var(--soviet-gold);
-    opacity: 0.3;
+.countdown-number {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 8rem;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 20px var(--neon-yellow), 0 0 40px var(--neon-yellow);
+    text-align: center;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
     pointer-events: none;
 }
 
-.diagonal-emphasis {
-    clip-path: polygon(0 0, 100% 2%, 98% 100%, 2% 98%);
+/* Timer in header */
+.header-timer {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.5rem;
+    color: var(--neon-green);
+    text-shadow: 0 0 10px var(--neon-green);
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
-/* Tessellated background pattern */
-.tessellated-bg {
-    background-image:
-        repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 10px,
-            rgba(212, 165, 116, 0.05) 10px,
-            rgba(212, 165, 116, 0.05) 20px
-        ),
-        repeating-linear-gradient(
-            -45deg,
-            transparent,
-            transparent 10px,
-            rgba(201, 169, 97, 0.03) 10px,
-            rgba(201, 169, 97, 0.03) 20px
-        );
+.header-timer.timer-force-hidden {
+    display: none !important;
+}
+
+/* QR code overlay */
+.qr-overlay {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--neon-green);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 0 20px var(--neon-green);
+    z-index: 500;
+}
+
+.qr-overlay img {
+    display: block;
+}
+
+.qr-overlay.hidden {
+    display: none;
+}
+
+.qr-fallback {
+    font-family: 'Press Start 2P', cursive;
+    font-size: var(--text-body);
+    color: var(--neon-yellow);
+    padding: 1rem;
+}
+
+@media (max-width: 900px) {
+    .countdown-number {
+        font-size: 4rem;
+    }
+
+    .header-timer {
+        font-size: 1rem;
+        padding: 0 0.5rem;
+    }
+
+    .qr-overlay {
+        bottom: 0.5rem;
+        right: 0.5rem;
+        padding: 0.5rem;
+    }
 }
 
 /* Accessibility: Respect reduced motion preference */

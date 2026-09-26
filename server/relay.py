@@ -4,136 +4,9 @@ import os
 import random
 import string
 import time
-import urllib.request
 from datetime import datetime
 import websockets
 from websockets.server import serve
-
-def extract_canvas_info(manifest):
-    """Extract canvas info (label, image_url, service_url) from all canvases in IIIF manifest (v2 or v3)"""
-    canvases = []
-
-    # IIIF Presentation API 3.0
-    if 'items' in manifest:
-        for canvas in manifest.get('items', []):
-            try:
-                body = canvas['items'][0]['items'][0]['body']
-                image_url = body.get('id')
-                label_obj = canvas.get('label', {})
-                # v3 labels are language maps: {"en": ["Label"]}
-                label = None
-                if isinstance(label_obj, dict):
-                    for lang_values in label_obj.values():
-                        if isinstance(lang_values, list) and lang_values:
-                            label = lang_values[0]
-                            break
-                elif isinstance(label_obj, str):
-                    label = label_obj
-                # Extract service URL for IIIF Image API
-                service_url = None
-                service = body.get('service', [])
-                if isinstance(service, list) and service:
-                    service_url = service[0].get('id') or service[0].get('@id')
-                elif isinstance(service, dict):
-                    service_url = service.get('id') or service.get('@id')
-                canvases.append({
-                    "label": label,
-                    "image_url": image_url,
-                    "service_url": service_url
-                })
-            except (KeyError, IndexError, TypeError):
-                continue
-        if canvases:
-            return canvases
-
-    # IIIF Presentation API 2.1
-    for sequence in manifest.get('sequences', []):
-        for canvas in sequence.get('canvases', []):
-            try:
-                image_resource = canvas['images'][0]['resource']
-                image_url = image_resource.get('@id')
-                label = canvas.get('label')
-                if isinstance(label, dict):
-                    # v2 can have {"@value": "Label"}
-                    label = label.get('@value', str(label))
-                elif isinstance(label, list) and label:
-                    label = label[0] if isinstance(label[0], str) else label[0].get('@value', str(label[0]))
-                # Extract service URL for IIIF Image API
-                service_url = None
-                service = image_resource.get('service')
-                if isinstance(service, list) and service:
-                    service_url = service[0].get('@id') or service[0].get('id')
-                elif isinstance(service, dict):
-                    service_url = service.get('@id') or service.get('id')
-                canvases.append({
-                    "label": label,
-                    "image_url": image_url,
-                    "service_url": service_url
-                })
-            except (KeyError, IndexError, TypeError):
-                continue
-
-    return canvases
-
-def extract_localized_value(value):
-    """Extract string from IIIF v2/v3 localized values (language maps, plain strings, lists)"""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
-        # v3 language map: {"en": ["Label text"]}
-        # or v2: {"@value": "Label text"}
-        if '@value' in value:
-            return value['@value']
-        for lang_values in value.values():
-            if isinstance(lang_values, list) and lang_values:
-                return str(lang_values[0])
-            if isinstance(lang_values, str):
-                return lang_values
-    if isinstance(value, list) and value:
-        return extract_localized_value(value[0])
-    return None
-
-def extract_manifest_metadata(manifest):
-    """Extract manifest-level metadata (label, description, metadata pairs)"""
-    label = extract_localized_value(manifest.get('label'))
-
-    # Description: v3 uses 'summary', v2 uses 'description'
-    description = extract_localized_value(
-        manifest.get('summary') or manifest.get('description')
-    )
-
-    # Metadata pairs
-    metadata_pairs = []
-    for entry in manifest.get('metadata', []):
-        entry_label = extract_localized_value(entry.get('label'))
-        entry_value = extract_localized_value(entry.get('value'))
-        if entry_label and entry_value:
-            metadata_pairs.append(f"{entry_label}: {entry_value}")
-
-    # Build metadata_text from description + metadata pairs
-    parts = []
-    if description:
-        parts.append(description)
-    parts.extend(metadata_pairs)
-    metadata_text = '\n\n'.join(parts) if parts else None
-
-    return {
-        "label": label,
-        "description": description,
-        "metadata_text": metadata_text
-    }
-
-def fetch_manifest(manifest_url):
-    """Fetch IIIF manifest and extract canvas info and metadata"""
-    try:
-        with urllib.request.urlopen(manifest_url, timeout=10) as response:
-            manifest = json.loads(response.read())
-
-        canvases = extract_canvas_info(manifest)
-        metadata = extract_manifest_metadata(manifest)
-        return canvases, metadata, None
-    except Exception as e:
-        return [], {}, str(e)
 
 # Multiple sessions (in memory)
 sessions = {}  # {code: session_data}
@@ -155,13 +28,11 @@ def create_new_session(code):
             "speed_options": [1, 2, 3]
         },
         "clients": {},  # {websocket: {"role": "judge", "judge_id": 1}}
-        "items": [],
+        "stories": [],
         "current_round": {
-            "item_index": None,
+            "story_index": None,
             "title": None,
             "text": None,
-            "canvases": [],
-            "canvas_index": 0,
             "start_time": None,
             "speed": 1,
             "paused": False,
@@ -172,13 +43,17 @@ def create_new_session(code):
         },
         "history": [],
         "judge_slots": {},  # {judge_id: {"websocket": ws, "name": str}} - dynamic
-        "next_judge_id": 1
+        "next_judge_id": 1,
+        "judge_sounds": {},  # {judge_id: sound_index (0-4)}
+        "audience_qr_visible": False,
+        "timer_visible": True,
+        "buzz_history": []  # [{judge_id, judge_name, time, timestamp}, ...]
     }
 
-CONTROLLER_ONLY = {"add_item", "remove_item", "round_start", "speed_change",
-                    "pause", "resume", "reset_round", "text_advance", "canvas_advance",
+CONTROLLER_ONLY = {"add_story", "remove_story", "update_story", "round_start",
+                    "speed_change", "pause", "resume", "reset_round", "text_advance",
                     "import_session", "eject_judges", "shutdown_audience", "delete_session",
-                    "fetch_manifest"}
+                    "countdown_start", "toggle_audience_qr", "toggle_timer_visibility"}
 
 def get_connected_judges(session):
     """Return sorted list of {id, name} for connected judges"""
@@ -222,7 +97,7 @@ async def handle_message(websocket, message_data):
             audience_count = sum(1 for c in sess["clients"].values() if c.get("role") == "audience")
             session_list.append({
                 "code": code,
-                "item_count": len(sess["items"]),
+                "story_count": len(sess["stories"]),
                 "judge_count": judge_count,
                 "audience_count": audience_count
             })
@@ -266,6 +141,9 @@ async def handle_message(websocket, message_data):
             judge_name = judge_name[:20]  # max 20 chars
             session["judge_slots"][judge_id] = {"websocket": websocket, "name": judge_name}
             session["clients"][websocket] = {"role": "judge", "judge_id": judge_id}
+            # Assign random buzz sound if not already assigned (reconnection case)
+            if judge_id not in session["judge_sounds"]:
+                session["judge_sounds"][judge_id] = random.randint(0, 4)
         else:
             session["clients"][websocket] = {"role": role}
 
@@ -276,11 +154,15 @@ async def handle_message(websocket, message_data):
             "data": {
                 "code": session["code"],
                 "config": session["config"],
-                "items": session["items"],
+                "stories": session["stories"],
                 "current_round": session["current_round"],
                 "history": session["history"],
                 "client_info": session["clients"][websocket],
                 "connected_judges": connected_judges,
+                "judge_sounds": session["judge_sounds"],
+                "audience_count": sum(1 for c in session["clients"].values() if c.get("role") == "audience"),
+                "audience_qr_visible": session["audience_qr_visible"],
+                "timer_visible": session["timer_visible"],
                 "server_time": time.time()
             }
         }))
@@ -289,7 +171,11 @@ async def handle_message(websocket, message_data):
         if role == "judge":
             await broadcast_to_session(code, {
                 "type": "judge_joined",
-                "data": {"judge_id": judge_id, "connected_judges": connected_judges}
+                "data": {
+                    "judge_id": judge_id,
+                    "connected_judges": connected_judges,
+                    "judge_sounds": session["judge_sounds"]
+                }
             }, exclude=websocket)
         elif role == "audience":
             audience_count = sum(1 for c in session["clients"].values() if c.get("role") == "audience")
@@ -298,70 +184,165 @@ async def handle_message(websocket, message_data):
                 "data": {"audience_count": audience_count}
             }, exclude=websocket)
 
-    elif msg_type == "add_item":
-        title = data.get("title", "").strip()
-        text = data.get("text", "").strip()
-        manifest_url = data.get("manifest_url", "").strip() or None
-        canvases = data.get("canvases", [])
-
-        if not title or not text:
-            await websocket.send(json.dumps({
-                "type": "error",
-                "data": {"message": "Title and text required"}
-            }))
-            return
-
-        item = {
-            "title": title,
-            "text": text,
-            "manifest_url": manifest_url,
-            "canvases": canvases
-        }
-        session["items"].append(item)
-
+    elif msg_type == "add_story":
+        title = data.get("title", "Untitled")
+        text = data.get("text", "")
+        session["stories"].append({"title": title, "text": text})
         await broadcast_to_session(session_code, {
-            "type": "item_added",
-            "data": item
+            "type": "story_added",
+            "data": {"index": len(session["stories"]) - 1, "title": title}
         })
 
-    elif msg_type == "remove_item":
-        item_index = data.get("item_index")
-        if item_index is not None and 0 <= item_index < len(session["items"]):
-            session["items"].pop(item_index)
+    elif msg_type == "remove_story":
+        story_index = data.get("story_index")
+        if story_index is not None and 0 <= story_index < len(session["stories"]):
+            session["stories"].pop(story_index)
             await broadcast_to_session(session_code, {
-                "type": "item_removed",
-                "data": {"item_index": item_index}
+                "type": "story_removed",
+                "data": {"index": story_index}
             })
 
-    elif msg_type == "round_start":
-        item_index = data.get("item_index")
-        if item_index is None or item_index < 0 or item_index >= len(session["items"]):
+    elif msg_type == "update_story":
+        story_index = data.get("story_index")
+        if story_index is None or story_index >= len(session["stories"]):
             await websocket.send(json.dumps({
                 "type": "error",
-                "data": {"message": "Invalid item index"}
+                "data": {"message": "Invalid story index"}
+            }))
+            return
+        session["stories"][story_index] = {
+            "title": data.get("title", ""),
+            "text": data.get("text", "")
+        }
+        await broadcast_to_session(session_code, {
+            "type": "stories_update",
+            "data": {"stories": session["stories"]}
+        })
+
+    elif msg_type == "countdown_start":
+        story_index = data.get("story_index")
+        if story_index is None or story_index >= len(session["stories"]):
+            await websocket.send(json.dumps({
+                "type": "error",
+                "data": {"message": "Invalid story index"}
             }))
             return
 
-        item = session["items"][item_index]
+        story = session["stories"][story_index]
 
-        # Split text into paragraphs (double newline)
-        text = item.get("text", "").strip()
+        # Split text into sentence chunks (reuse round_start logic)
+        import re
+        text = story.get("text", "").strip()
         if not text:
-            text_paragraphs = ["[Empty metadata]"]
+            text_lines = ["[Empty story]"]
         else:
-            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
-            if not paragraphs:
-                text_paragraphs = [text]
-            else:
-                text_paragraphs = paragraphs
+            sentences = re.split(r'([.!?]+\s+)', text)
+            sentences = [''.join(sentences[i:i+2]).strip() for i in range(0, len(sentences)-1, 2) if sentences[i].strip()]
+            if not sentences:
+                sentences = [text]
+            text_lines = []
+            chunk = []
+            for sent in sentences:
+                chunk.append(sent)
+                if len(chunk) >= 3:
+                    text_lines.append(' '.join(chunk))
+                    chunk = []
+            if chunk:
+                text_lines.append(' '.join(chunk))
+            if not text_lines:
+                text_lines = [text]
+
+        # Reset round state (countdown phase — start_time set later)
+        session["current_round"] = {
+            "story_index": story_index,
+            "title": story["title"],
+            "text": story["text"],
+            "text_lines": text_lines,
+            "text_position": 0,
+            "start_time": None,
+            "speed": 1,
+            "paused": False,
+            "pause_time": None,
+            "elapsed_at_pause": 0,
+            "buzzes": [],
+            "status": "countdown"
+        }
+        # Clear buzz history for new round
+        session["buzz_history"] = []
+
+        await broadcast_to_session(session_code, {
+            "type": "countdown_start",
+            "data": {
+                "story_index": story_index,
+                "story_title": story["title"],
+                "story_text": story["text"],
+                "text_line_count": len(text_lines),
+                "first_line": text_lines[0] if text_lines else ""
+            }
+        })
+
+    elif msg_type == "round_start":
+        story_index = data.get("story_index", 0)
+        if story_index >= len(session["stories"]):
+            await websocket.send(json.dumps({
+                "type": "error",
+                "data": {"message": "Invalid story index"}
+            }))
+            return
+
+        story = session["stories"][story_index]
+
+        # If countdown already set up this round, just transition to running
+        current = session["current_round"]
+        if (current.get("status") == "countdown"
+                and current.get("story_index") == story_index
+                and current.get("text_lines")):
+            now = time.time()
+            current["start_time"] = now
+            current["status"] = "running"
+            # Position 1: first line was already shown during countdown
+            current["text_position"] = 1
+
+            text_lines = current["text_lines"]
+            await broadcast_to_session(session_code, {
+                "type": "round_started",
+                "data": {
+                    "title": story["title"],
+                    "text": story["text"],
+                    "text_line_count": len(text_lines),
+                    "start_time": now,
+                    "server_time": now
+                }
+            })
+            return
+
+        # Full setup (no countdown preceded this)
+        import re
+        text = story.get("text", "").strip()
+        if not text:
+            text_lines = ["[Empty story]"]
+        else:
+            sentences = re.split(r'([.!?]+\s+)', text)
+            sentences = [''.join(sentences[i:i+2]).strip() for i in range(0, len(sentences)-1, 2) if sentences[i].strip()]
+            if not sentences:
+                sentences = [text]
+            text_lines = []
+            chunk = []
+            for sent in sentences:
+                chunk.append(sent)
+                if len(chunk) >= 3:
+                    text_lines.append(' '.join(chunk))
+                    chunk = []
+            if chunk:
+                text_lines.append(' '.join(chunk))
+            if not text_lines:
+                text_lines = [text]
 
         session["current_round"] = {
-            "item_index": item_index,
-            "title": item["title"],
-            "text": item["text"],
-            "canvases": item.get("canvases", []),
-            "canvas_index": 0,
-            "text_paragraphs": text_paragraphs,
+            "story_index": story_index,
+            "title": story["title"],
+            "text": story["text"],
+            "text_lines": text_lines,
             "text_position": 0,
             "start_time": time.time(),
             "speed": 1,
@@ -376,11 +357,9 @@ async def handle_message(websocket, message_data):
         await broadcast_to_session(session_code, {
             "type": "round_started",
             "data": {
-                "title": item["title"],
-                "text": item["text"],
-                "canvases": item.get("canvases", []),
-                "canvas_index": 0,
-                "text_paragraph_count": len(text_paragraphs),
+                "title": story["title"],
+                "text": story["text"],
+                "text_line_count": len(text_lines),
                 "start_time": now,
                 "server_time": now
             }
@@ -429,11 +408,11 @@ async def handle_message(websocket, message_data):
             return
 
         text_position = session["current_round"]["text_position"]
-        text_paragraphs = session["current_round"]["text_paragraphs"]
+        text_lines = session["current_round"]["text_lines"]
 
         # Check if text exhausted
-        if text_position >= len(text_paragraphs):
-            # Victory - all paragraphs revealed without all judges buzzing
+        if text_position >= len(text_lines):
+            # Victory - reader finished without all judges buzzing
             now = time.time()
             elapsed = now - session["current_round"]["start_time"]
             session["current_round"]["status"] = "victory"
@@ -451,82 +430,29 @@ async def handle_message(websocket, message_data):
                 "data": outcome_data
             })
         else:
-            # Advance to next paragraph
-            current_paragraph = text_paragraphs[text_position]
+            # Advance to next line
+            current_line = text_lines[text_position]
             session["current_round"]["text_position"] += 1
 
             await broadcast_to_session(session_code, {
                 "type": "text_advanced",
                 "data": {
-                    "paragraph": current_paragraph,
+                    "line": current_line,
                     "position": text_position,
-                    "total": len(text_paragraphs)
+                    "total": len(text_lines)
                 }
             })
-
-    elif msg_type == "canvas_advance":
-        # Only advance during running round
-        if session["current_round"]["status"] != "running":
-            return
-
-        canvases = session["current_round"].get("canvases", [])
-        if not canvases:
-            return
-
-        direction = data.get("direction")
-        canvas_index = session["current_round"]["canvas_index"]
-
-        if direction == "next":
-            canvas_index = min(canvas_index + 1, len(canvases) - 1)
-        elif direction == "prev":
-            canvas_index = max(canvas_index - 1, 0)
-        else:
-            return
-
-        session["current_round"]["canvas_index"] = canvas_index
-
-        await broadcast_to_session(session_code, {
-            "type": "canvas_advanced",
-            "data": {
-                "canvas_index": canvas_index,
-                "canvas": canvases[canvas_index]
-            }
-        })
-
-    elif msg_type == "fetch_manifest":
-        manifest_url = data.get("manifest_url", "").strip()
-
-        if not manifest_url:
-            await websocket.send(json.dumps({
-                "type": "manifest_fetched",
-                "data": {
-                    "canvases": [],
-                    "error": "No manifest URL provided"
-                }
-            }))
-            return
-
-        canvases, metadata, error = fetch_manifest(manifest_url)
-
-        await websocket.send(json.dumps({
-            "type": "manifest_fetched",
-            "data": {
-                "canvases": canvases,
-                "metadata": metadata,
-                "error": error
-            }
-        }))
 
     elif msg_type == "buzz":
         # Only accept buzzes during a running round
         if session["current_round"]["status"] != "running":
             return
 
-        judge_id = data.get("judge_id")
         client_info = session["clients"].get(websocket, {})
-
-        # Verify this is actually a judge
-        if client_info.get("role") != "judge" or client_info.get("judge_id") != judge_id:
+        if client_info.get("role") != "judge":
+            return
+        judge_id = client_info.get("judge_id")
+        if not judge_id:
             return
 
         # Check if already buzzed
@@ -534,41 +460,42 @@ async def handle_message(websocket, message_data):
             return
 
         now = time.time()
-        elapsed = now - session["current_round"]["start_time"]
-        buzz_entry = {"judge_id": judge_id, "time": round(elapsed, 1)}
+        start_time = session["current_round"].get("start_time")
+        elapsed = round(now - start_time, 1) if start_time else 0
+
+        buzz_entry = {"judge_id": judge_id, "time": elapsed}
         session["current_round"]["buzzes"].append(buzz_entry)
+        buzz_count = len(session["current_round"]["buzzes"])
+
+        # Record in buzz_history
+        judge_name = session["judge_slots"].get(judge_id, {}).get("name", f"Judge {judge_id}")
+        timestamp = datetime.utcnow().isoformat() + "Z"
+        session["buzz_history"].append({
+            "judge_id": judge_id,
+            "judge_name": judge_name,
+            "time": elapsed,
+            "timestamp": timestamp
+        })
 
         await broadcast_to_session(session_code, {
             "type": "buzzed",
-            "data": buzz_entry
+            "data": {
+                "judge_id": judge_id,
+                "time": elapsed,
+                "buzz_count": buzz_count,
+                "timestamp": timestamp
+            }
         })
 
         # Check if all connected judges have buzzed
         connected_judge_count = sum(1 for slot in session["judge_slots"].values() if slot["websocket"] is not None)
-        if len(session["current_round"]["buzzes"]) >= connected_judge_count:
+        if buzz_count >= connected_judge_count:
             session["current_round"]["status"] = "defeat"
             outcome_data = {
                 "outcome": "defeat",
                 "buzzes": session["current_round"]["buzzes"],
-                "duration": session["current_round"]["buzzes"][-1]["time"]
-            }
-            session["history"].append({
-                "title": session["current_round"]["title"],
-                **outcome_data
-            })
-            await broadcast_to_session(session_code, {
-                "type": "round_ended",
-                "data": outcome_data
-            })
-
-    elif msg_type == "victory":
-        # Client detected timer reached limit
-        if session["current_round"]["status"] == "running":
-            session["current_round"]["status"] = "victory"
-            outcome_data = {
-                "outcome": "victory",
-                "buzzes": session["current_round"]["buzzes"],
-                "duration": session["config"]["timer_duration"]
+                "buzz_history": session["buzz_history"],
+                "duration": elapsed
             }
             session["history"].append({
                 "title": session["current_round"]["title"],
@@ -602,11 +529,9 @@ async def handle_message(websocket, message_data):
 
     elif msg_type == "reset_round":
         session["current_round"] = {
-            "item_index": None,
+            "story_index": None,
             "title": None,
             "text": None,
-            "canvases": [],
-            "canvas_index": 0,
             "start_time": None,
             "speed": 1,
             "paused": False,
@@ -621,34 +546,74 @@ async def handle_message(websocket, message_data):
         })
 
     elif msg_type == "import_session":
-        imported_items = data.get("items", [])
-        imported_config = data.get("config", {})
+        stories = data.get("stories", [])
+        config = data.get("config", {})
 
-        # Validate items
-        valid_items = []
-        for item in imported_items:
-            if isinstance(item, dict) and "title" in item and "text" in item:
-                valid_item = {
-                    "title": item["title"],
-                    "text": item["text"],
-                    "manifest_url": item.get("manifest_url"),
-                    "canvases": item.get("canvases", [])
-                }
-                valid_items.append(valid_item)
+        # Validate stories format
+        if not isinstance(stories, list):
+            await websocket.send(json.dumps({
+                "type": "error",
+                "data": {"message": "Invalid stories format"}
+            }))
+            return
 
-        session["items"] = valid_items
+        for story in stories:
+            if not isinstance(story, dict) or "title" not in story or "text" not in story:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "data": {"message": "Invalid story format"}
+                }))
+                return
 
-        # Update config if provided
-        if "timer_duration" in imported_config:
-            session["config"]["timer_duration"] = int(imported_config["timer_duration"])
+        # Merge config (only allowed keys)
+        if "timer_duration" in config:
+            session["config"]["timer_duration"] = int(config["timer_duration"])
+        if "judge_count" in config:
+            session["config"]["judge_count"] = int(config["judge_count"])
+
+        # Replace stories
+        session["stories"] = stories
 
         await broadcast_to_session(session_code, {
             "type": "session_imported",
-            "data": {
-                "items": valid_items,
-                "config": session["config"]
-            }
+            "data": {"story_count": len(stories)}
         })
+
+    elif msg_type == "toggle_audience_qr":
+        visible = data.get("visible", True)
+        session["audience_qr_visible"] = visible
+        # Broadcast only to audience clients
+        audience_clients = [
+            ws for ws, info in session["clients"].items()
+            if info.get("role") == "audience" and ws.open
+        ]
+        message = json.dumps({
+            "type": "toggle_audience_qr",
+            "data": {"visible": visible}
+        })
+        if audience_clients:
+            await asyncio.gather(
+                *[ws.send(message) for ws in audience_clients],
+                return_exceptions=True
+            )
+
+    elif msg_type == "toggle_timer_visibility":
+        visible = data.get("visible", True)
+        session["timer_visible"] = visible
+        # Broadcast to audience and judge clients
+        target_clients = [
+            ws for ws, info in session["clients"].items()
+            if info.get("role") in ("audience", "judge") and ws.open
+        ]
+        message = json.dumps({
+            "type": "toggle_timer_visibility",
+            "data": {"visible": visible}
+        })
+        if target_clients:
+            await asyncio.gather(
+                *[ws.send(message) for ws in target_clients],
+                return_exceptions=True
+            )
 
     elif msg_type == "eject_judges":
         # Close all judge websockets with message

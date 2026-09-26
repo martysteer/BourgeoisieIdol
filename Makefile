@@ -1,4 +1,4 @@
-.PHONY: help docker servers stop clean dev dev-stop
+.PHONY: help docker servers stop restart clean dev dev-stop
 
 .DEFAULT_GOAL := help
 
@@ -9,6 +9,7 @@ help:
 	@echo "  make docker      Build Docker image"
 	@echo "  make servers     Run Docker container (port 80 + 8765)"
 	@echo "  make stop        Stop and remove Docker container"
+	@echo "  make restart     Stop, rebuild, and restart container"
 	@echo "  make clean       Stop container, remove container and image"
 	@echo ""
 	@echo "Local development commands:"
@@ -36,6 +37,8 @@ servers:
 stop:
 	docker stop specidol 2>/dev/null || true
 	docker rm specidol 2>/dev/null || true
+
+restart: stop docker servers
 
 clean:
 	docker stop specidol 2>/dev/null || true

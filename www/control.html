@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controller - BOURGEOISIE IDOL</title>
+    <title>Controller - SPECULATIVE IDOL</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,7 +11,6 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"></noscript>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="modal.css">
-    <script src="openseadragon.min.js"></script>
     <style>
         h2 {
             font-size: var(--text-subheading);
@@ -116,6 +115,7 @@
             overflow-y: auto;
             min-height: 50vh;
             max-height: 50vh;
+            position: relative;
         }
 
         .story-text-column .story-text {
@@ -279,23 +279,36 @@
             white-space: nowrap;
         }
 
-        .story-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .story-actions button {
-            background: var(--black);
-            color: var(--neon-red);
-            border-color: var(--neon-red);
+        .story-status {
+            font-family: 'Press Start 2P', cursive;
             font-size: var(--text-caption);
-            padding: 0.5rem 1rem;
+            white-space: nowrap;
+            padding-left: 0.5rem;
         }
 
-        .story-actions button:hover {
-            background: var(--neon-red);
-            color: var(--black);
-            box-shadow: 0 0 20px var(--neon-red);
+        .story-status.victory {
+            color: var(--neon-green);
+            text-shadow: 0 0 5px var(--neon-green);
+        }
+
+        .story-status.defeat {
+            color: var(--neon-red);
+            text-shadow: 0 0 5px var(--neon-red);
+        }
+
+        .story-status.running {
+            color: var(--neon-green);
+            animation: pulse-glow 1.5s ease-in-out infinite;
+        }
+
+        .story-status.paused {
+            color: var(--neon-yellow);
+            text-shadow: 0 0 5px var(--neon-yellow);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; text-shadow: 0 0 5px var(--neon-green); }
+            50% { opacity: 0.5; text-shadow: none; }
         }
 
         /* Empty state styling */
@@ -404,21 +417,9 @@
             color: var(--neon-green);
         }
 
-        #cancelEditBtn {
-            display: none;
-            background: var(--black);
-            color: var(--neon-red);
-            border-color: var(--neon-red);
-        }
-
-        #cancelEditBtn.visible {
-            display: inline-block;
-        }
-
-        #cancelEditBtn:hover {
-            background: var(--neon-red);
-            color: var(--black);
-            box-shadow: 0 0 20px var(--neon-red);
+        /* Story edit panel */
+        .story-edit-details > *:not(summary) {
+            margin-top: 0.5rem;
         }
 
         label {
@@ -437,6 +438,107 @@
             min-height: 200px;
             font-size: var(--text-caption);
         }
+
+        /* De-emphasize secondary controls */
+        .btn-pause, .btn-reset, .btn-qr-toggle {
+            font-size: var(--text-caption);
+            padding: 0.4rem 0.8rem;
+            opacity: 0.6;
+        }
+
+        .btn-pause:hover:not(:disabled),
+        .btn-reset:hover:not(:disabled) {
+            opacity: 1;
+        }
+
+        /* Judge/Audience config section */
+        .judge-audience-config {
+            margin-top: auto;
+            padding-top: 1rem;
+        }
+
+        .judge-audience-config img {
+            display: block;
+        }
+
+        .config-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: var(--text-caption);
+            margin-bottom: 0.4rem;
+            cursor: pointer;
+        }
+
+        .config-checkbox input[type="checkbox"] {
+            accent-color: var(--neon-yellow);
+            width: 1rem;
+            height: 1rem;
+        }
+
+        /* Countdown on controller: smaller, less prominent */
+        #countdown-container .countdown-number {
+            font-size: 4rem;
+            opacity: 0.7;
+        }
+
+        /* Story edit panel actions */
+        .edit-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-add-story {
+            background: var(--black);
+            color: var(--neon-yellow);
+            border-color: var(--neon-yellow);
+            align-self: flex-start;
+        }
+
+        .btn-add-story:hover:not(:disabled) {
+            background: var(--neon-yellow);
+            color: var(--black);
+            box-shadow: 0 0 20px var(--neon-yellow);
+        }
+
+        .queue-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Outcome overlay — contained in story text column */
+        .outcome {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Press Start 2P', cursive;
+            font-size: calc(var(--text-display) * 1.5);
+            z-index: 100;
+            text-align: center;
+            line-height: 1.2;
+            pointer-events: none;
+        }
+
+        .outcome.victory {
+            color: var(--neon-green);
+            text-shadow: 0 0 20px var(--neon-green);
+        }
+
+        .outcome.defeat {
+            color: var(--neon-red);
+            text-shadow: 0 0 20px var(--neon-red);
+        }
+
+        /* Management queue items (different from main queue - clickable for editing) */
+        #mgmtStoryQueue .story-item.editing {
+            color: var(--neon-yellow);
+            border-left: 3px solid var(--neon-yellow);
+            padding-left: calc(0.5rem - 3px);
+        }
     </style>
 </head>
 <body class="page-scrollable">
@@ -445,13 +547,16 @@
             <div class="page-label">CONTROLLING</div>
             <div class="header-info">
                 <span class="code" id="sessionCode">----</span> |
-                <span id="itemCount">0</span> items |
+                <span id="storyCount">0</span> stories |
                 <span id="judgeCount">0</span> judges |
                 <span id="audienceCount">0</span> audience
             </div>
         </div>
-        <div class="header-context waiting" id="headerItemTitle">No item selected</div>
+        <div class="header-timer" id="headerTimer" style="display: none;">0:00.0</div>
+        <div class="header-context waiting" id="headerStoryTitle">No story selected</div>
     </header>
+
+    <div id="countdown-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1000;"></div>
 
     <main class="page-content">
     <!-- PRIMARY: Controls + live story text -->
@@ -460,77 +565,68 @@
             <div id="currentStatus" class="status-text" role="status" aria-live="polite">Status: Waiting</div>
             <div class="controls">
                 <button onclick="startRound()" id="startBtn">Start Round</button>
-                <button onclick="advanceText()" id="advanceBtn" class="btn-advance" disabled>Reveal Next Paragraph</button>
-                <div id="canvasControls" style="display: flex; align-items: center; gap: 0.5rem;">
-                    <button onclick="advanceCanvas('prev')" id="prevCanvasBtn" disabled>◀ Prev Canvas</button>
-                    <span id="canvasProgress" class="text-progress" style="white-space: nowrap;">Canvas 0 / 0</span>
-                    <button onclick="advanceCanvas('next')" id="nextCanvasBtn" disabled>Next Canvas ▶</button>
-                </div>
+                <button onclick="advanceText()" id="advanceBtn" class="btn-advance" disabled>Advance Text</button>
                 <button onclick="togglePause()" id="pauseBtn" class="btn-pause" disabled>Pause</button>
-                <button onclick="resetRound()" id="resetBtn" class="btn-reset">Reset</button>
+                <button onclick="closeRound()" id="closeBtn" class="btn-reset">Close Round</button>
             </div>
             <div id="textProgress" class="text-progress" role="status" aria-live="polite"></div>
+            <details open class="judge-audience-config">
+                <summary style="cursor:pointer;font-size:var(--text-caption);margin-bottom:0.5rem;">Judge/Audience Config</summary>
+                <label class="config-checkbox">
+                    <input type="checkbox" id="toggleQRCheckbox" onchange="toggleAudienceQR(this.checked)"> Display QR to audience
+                </label>
+                <label class="config-checkbox">
+                    <input type="checkbox" id="toggleTimerCheckbox" checked onchange="toggleTimerVisibility(this.checked)"> Display timer to audience/judges
+                </label>
+                <div id="judgeQRContainer"></div>
+            </details>
         </div>
         <div class="story-text-column">
-            <div id="osdViewerContainer" style="display: none; position: relative;">
-                <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--soviet-gold); margin-bottom: 0.25rem; display: none;"></div>
-                <div id="osdViewer" style="width: 100%; height: 200px; background: var(--black);"></div>
-                <div id="textOverlay" style="position: absolute; bottom: 0.5rem; left: 0.5rem; right: 0.5rem; max-height: 60%; overflow-y: auto; pointer-events: none; z-index: 10;">
-                    <div class="story-text" id="liveStoryText"></div>
-                </div>
+            <div class="story-text" id="liveStoryText">
+                <span class="empty-text">Story text appears here during round...</span>
             </div>
-            <div id="textOnlyContainer" class="story-text">
-                <span class="empty-text">Metadata paragraphs appear here during round...</span>
-            </div>
+            <div class="outcome" id="outcome" role="alert" aria-live="assertive"></div>
         </div>
     </div>
 
-    <!-- SECONDARY: Item queue (what's next) -->
-    <div class="collapsible" id="itemQueueSection">
-        <h2 onclick="toggleSection('itemQueueSection')">
+    <!-- Story management (expanded by default) -->
+    <div class="collapsible story-management" id="storyManagement">
+        <h2 onclick="toggleSection('storyManagement')">
             <span class="arrow">▼</span>
-            Item Queue
-        </h2>
-        <div class="section-content">
-            <ul class="story-queue" id="itemQueue"></ul>
-        </div>
-    </div>
-
-    <!-- TERTIARY: Item management (collapsed by default) -->
-    <div class="collapsible story-management collapsed" id="itemManagement">
-        <h2 onclick="toggleSection('itemManagement')">
-            <span class="arrow">▼</span>
-            Item Management
+            Story Queue
         </h2>
         <div class="section-content">
             <div class="management-section">
-                <h3 id="itemFormTitle">Add Item</h3>
-                <div class="form-group">
-                    <label>Round Question/Title:</label>
-                    <input type="text" id="itemTitle" placeholder="e.g. Is this metadata complete?">
-                </div>
-                <div class="form-group">
-                    <label>IIIF Manifest URL (optional):</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="manifestUrl" placeholder="https://example.org/manifest.json" style="flex: 1;">
-                        <button type="button" id="fetchManifestBtn" onclick="fetchManifest()">Fetch Manifest</button>
+                <ul class="story-queue" id="mgmtStoryQueue"></ul>
+            </div>
+
+            <div class="management-section">
+                <button onclick="addNewStory()" class="btn-add-story" style="font-size:var(--text-caption);padding:0.4rem 0.8rem;">+ Add Story</button>
+                <details class="story-edit-details" id="storyEditPanel">
+                    <summary style="cursor:pointer;font-size:var(--text-caption);opacity:0.7;" id="storyFormTitle">Add / Edit Story</summary>
+                    <div class="form-group">
+                        <label>Title:</label>
+                        <input type="text" id="storyTitle" placeholder="Story title">
                     </div>
-                    <span id="manifestStatus" style="font-size: var(--text-caption); display: block; margin-top: 0.25rem;"></span>
-                </div>
-                <div class="form-group">
-                    <label>Metadata Text:</label>
-                    <textarea id="itemText" placeholder="Catalogue metadata...&#10;&#10;Separate paragraphs with blank lines"></textarea>
-                    <small style="font-size: var(--text-caption); opacity: 0.7;">Separate paragraphs with double newline (blank line)</small>
-                </div>
-                <button onclick="saveItem()" id="saveItemBtn">Add Item</button>
-                <button onclick="cancelEdit()" id="cancelEditBtn">Cancel</button>
-            </div>
-
-            <div class="management-section">
-                <h3>Import / Export</h3>
-                <textarea id="importExportJson" placeholder="Session JSON..." style="min-height: 150px;"></textarea>
-                <button onclick="exportSession()">Export to JSON</button>
-                <button onclick="importSession()">Import from JSON</button>
+                    <div class="form-group">
+                        <label>Text:</label>
+                        <textarea id="storyText" placeholder="Story text..."></textarea>
+                    </div>
+                    <div class="edit-actions">
+                        <button onclick="saveStory()" id="saveStoryBtn" disabled>Update</button>
+                        <button onclick="removeEditingStory()" id="removeStoryBtn" class="btn-reset">Remove</button>
+                    </div>
+                </details>
+                <details style="margin-top: 0.5rem;">
+                    <summary style="cursor:pointer;font-size:var(--text-caption);opacity:0.7;">Import / Export</summary>
+                    <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <textarea id="importExportJson" placeholder="Paste JSON here to import..." style="min-height:150px;font-size:var(--text-caption);"></textarea>
+                        <div class="queue-actions">
+                            <button onclick="exportSession()" style="font-size:var(--text-caption);padding:0.4rem 0.8rem;">Export JSON</button>
+                            <button onclick="importSession()" id="importBtn" style="font-size:var(--text-caption);padding:0.4rem 0.8rem;" disabled>Import JSON</button>
+                        </div>
+                    </div>
+                </details>
             </div>
         </div>
     </div>
@@ -564,118 +660,19 @@
         </div>
     </footer>
 
+    <script src="lib/qrcode-generator.js"></script>
+    <script src="sounds.js"></script>
     <script src="app.js"></script>
     <script>
         const params = getUrlParams();
         const client = new SpecIdolClient();
         let sessionState = null;
-        let editingItemIndex = null;
-        let currentParagraphProgress = { position: 0, total: 0 };
-        let osdViewer = null;
-
-        // Soviet-themed SVG icons for OSD navigation buttons
-        function osdIcon(svg, color = '#d4a574') {
-            return 'data:image/svg+xml,' + encodeURIComponent(
-                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">${svg}</svg>`
-            ).replace(/%23/g, '#');
-        }
-
-        const OSD_NAV_IMAGES = {
-            zoomIn: {
-                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
-                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#d4a574" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
-                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#1a1a1a" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
-                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="18" y1="10" x2="18" y2="26" stroke="#fff" stroke-width="3"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
-            },
-            zoomOut: {
-                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
-                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#d4a574" stroke-width="3"/>'),
-                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#1a1a1a" stroke-width="3"/>'),
-                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><line x1="10" y1="18" x2="26" y2="18" stroke="#fff" stroke-width="3"/>')
-            },
-            home: {
-                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
-                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#d4a574" stroke-width="2"/>'),
-                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
-                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polygon points="18,6 30,18 24,18 24,30 12,30 12,18 6,18" fill="none" stroke="#fff" stroke-width="2"/>')
-            },
-            fullpage: {
-                REST:  osdIcon('<rect rx="4" width="36" height="36" fill="#1a1a1a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
-                GROUP: osdIcon('<rect rx="4" width="36" height="36" fill="#2a2a2a" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#d4a574" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#d4a574" stroke-width="2"/>'),
-                HOVER: osdIcon('<rect rx="4" width="36" height="36" fill="#d4a574" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#1a1a1a" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#1a1a1a" stroke-width="2"/>'),
-                DOWN:  osdIcon('<rect rx="4" width="36" height="36" fill="#b71c1c" stroke="#d4a574" stroke-width="2"/><polyline points="10,14 10,10 14,10" fill="none" stroke="#fff" stroke-width="2"/><polyline points="22,10 26,10 26,14" fill="none" stroke="#fff" stroke-width="2"/><polyline points="26,22 26,26 22,26" fill="none" stroke="#fff" stroke-width="2"/><polyline points="14,26 10,26 10,22" fill="none" stroke="#fff" stroke-width="2"/>')
-            }
-        };
-
-        let formCanvases = []; // canvases stored from manifest fetch, used when adding item
-        let currentCanvases = []; // canvases for current round
-        let currentCanvasIndex = 0;
-
-        function getTileSource(canvas) {
-            if (canvas.service_url) {
-                return canvas.service_url + '/info.json';
-            }
-            return { type: 'image', url: canvas.image_url };
-        }
-
-        function initOsdViewer(canvas) {
-            destroyOsdViewer();
-
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            osdViewer = OpenSeadragon({
-                element: document.getElementById('osdViewer'),
-                tileSources: getTileSource(canvas),
-                showNavigator: false,
-                showNavigationControl: true,
-                gestureSettingsMouse: { scrollToZoom: true },
-                animationTime: prefersReducedMotion ? 0 : 1.2,
-                springStiffness: prefersReducedMotion ? 100 : 6.5,
-                prefixUrl: '',
-                navImages: OSD_NAV_IMAGES
-            });
-        }
-
-        function destroyOsdViewer() {
-            if (osdViewer) {
-                osdViewer.destroy();
-                osdViewer = null;
-            }
-        }
-
-        function showCanvasLabel(label) {
-            const labelEl = document.getElementById('canvasLabel');
-            if (label) {
-                labelEl.textContent = label;
-                labelEl.style.display = 'block';
-            } else {
-                labelEl.style.display = 'none';
-            }
-        }
-
-        function updateCanvasControls() {
-            const prevBtn = document.getElementById('prevCanvasBtn');
-            const nextBtn = document.getElementById('nextCanvasBtn');
-            const progress = document.getElementById('canvasProgress');
-
-            const total = currentCanvases.length;
-
-            if (total <= 1) {
-                prevBtn.disabled = true;
-                nextBtn.disabled = true;
-                progress.textContent = total === 0 ? 'No canvases' : 'Canvas 1 / 1';
-            } else {
-                prevBtn.disabled = currentCanvasIndex <= 0;
-                nextBtn.disabled = currentCanvasIndex >= total - 1;
-                progress.textContent = `Canvas ${currentCanvasIndex + 1} / ${total}`;
-            }
-
-            // Also disable if round not running
-            if (!sessionState || sessionState.current_round.status !== 'running') {
-                prevBtn.disabled = true;
-                nextBtn.disabled = true;
-            }
-        }
+        let editingStoryIndex = null;
+        let currentLineProgress = { position: 0, total: 0 };
+        let audienceQRVisible = false;
+        let timer = null;
+        let countdown = null;
+        let formDirty = false;
 
         client.connect();
 
@@ -689,9 +686,11 @@
 
         client.on('session_created', (data) => {
             document.getElementById('sessionCode').textContent = data.code;
+            // Update URL to include code
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('code', data.code);
             window.history.replaceState({}, '', newUrl);
+            // Join as controller
             client.joinSession(data.code, 'controller');
         });
 
@@ -700,10 +699,32 @@
             updateUI();
             updateSessionCounts(data);
 
-            const hasItem = sessionState.current_round.item_index !== null;
-            if (!hasItem && sessionState.current_round.status === 'waiting') {
-                updateStatus('waiting');
+            // Initialize status on page load
+            const hasStory = sessionState.current_round.story_index !== null;
+            if (!hasStory && sessionState.current_round.status === 'waiting') {
+                updateStatus('waiting'); // Will show "select a story"
             }
+
+            // Generate judge QR code
+            const sessionCode = data.code;
+            const judgeURL = `${window.location.origin}/judge.html?code=${sessionCode}`;
+            const qrEl = createQRElement(judgeURL, sessionCode, 200);
+            const qrContainer = document.getElementById('judgeQRContainer');
+            qrContainer.innerHTML = '';
+            qrContainer.appendChild(qrEl);
+
+            // Click QR to open judge page in new tab
+            qrContainer.style.cursor = 'pointer';
+            qrContainer.title = 'Click to open judge page';
+            qrContainer.onclick = () => window.open(judgeURL, '_blank');
+
+            // Set audience QR toggle state
+            audienceQRVisible = data.audience_qr_visible !== false;
+            document.getElementById('toggleQRCheckbox').checked = audienceQRVisible;
+
+            // Set timer visibility toggle state
+            const timerVisible = data.timer_visible !== false;
+            document.getElementById('toggleTimerCheckbox').checked = timerVisible;
         });
 
         client.on('judge_joined', (data) => {
@@ -730,124 +751,145 @@
             }
         });
 
-        client.on('item_added', (data) => {
+        client.on('countdown_start', (data) => {
+            // Track title for history
             if (sessionState) {
-                sessionState.items.push(data);
-                renderItemQueue();
+                sessionState.current_round.title = data.story_title;
+                sessionState.current_round.status = 'countdown';
+                renderMgmtQueue();
             }
-            updateSessionCounts({items: sessionState.items});
+
+            // Reset timer and outcome
+            hideOutcome();
+            if (timer) timer.stop();
+            const timerEl = document.getElementById('headerTimer');
+            timerEl.style.display = 'flex';
+            timerEl.textContent = '0:00.0';
+
+            // Clear dimmed preview and show first paragraph
+            if (data.first_line) {
+                document.getElementById('liveStoryText').innerHTML = '';
+                appendStoryLine(data.first_line);
+            }
+
+            // Show countdown
+            if (countdown) countdown.cancel();
+            countdown = new Countdown('countdown-container', () => {
+                // Countdown complete — tell server to start the round
+                const storyIdx = data.story_index !== undefined
+                    ? data.story_index
+                    : (sessionState ? sessionState.current_round.story_index : 0);
+                client.startRound(storyIdx);
+            });
+            countdown.start();
         });
 
-        client.on('item_removed', (data) => {
-            if (sessionState) {
-                sessionState.items.splice(data.item_index, 1);
-                renderItemQueue();
+        client.on('buzzed', (data) => {
+            // Play buzz sound
+            if (client.judgeSounds) {
+                const soundIndex = client.judgeSounds[data.judge_id];
+                if (soundIndex !== undefined) {
+                    playBuzz(soundIndex, data.buzz_count || 1);
+                }
             }
-            updateSessionCounts({items: sessionState.items});
+
+            // Check for final combo (all judges buzzed)
+            if (sessionState) {
+                const totalJudges = Object.keys(client.judgeSounds || {}).length;
+                const buzzedCount = data.total_buzzed || 0;
+                if (buzzedCount >= totalJudges && totalJudges > 0) {
+                    setTimeout(() => {
+                        playFinalCombo(Object.values(client.judgeSounds || {}));
+                    }, 900);
+                }
+            }
         });
 
-        client.on('manifest_fetched', (data) => {
-            const btn = document.getElementById('fetchManifestBtn');
-            const status = document.getElementById('manifestStatus');
-            btn.disabled = false;
-
-            if (data.error) {
-                status.textContent = `Could not fetch manifest: ${data.error}`;
-                status.style.color = 'var(--soviet-red)';
-                formCanvases = [];
-            } else if (data.canvases && data.canvases.length > 0) {
-                status.textContent = `Manifest fetched: ${data.canvases.length} canvas${data.canvases.length !== 1 ? 'es' : ''} found`;
-                status.style.color = 'var(--soviet-gold)';
-                formCanvases = data.canvases;
-            } else {
-                status.textContent = 'Manifest fetched but no canvases found';
-                status.style.color = 'var(--soviet-gold)';
-                formCanvases = [];
+        client.on('story_added', (data) => {
+            // Controller already updates local state in addStory().
+            // This handler covers stories added by import or future multi-controller.
+            if (sessionState && data.index >= sessionState.stories.length) {
+                sessionState.stories.push({title: data.title, text: ''});
+                renderMgmtQueue();
             }
+            updateSessionCounts({stories: sessionState.stories});
+        });
 
-            // Auto-fill title and text from manifest metadata
-            if (data.metadata) {
-                const titleField = document.getElementById('itemTitle');
-                const textField = document.getElementById('itemText');
-                if (data.metadata.label && !titleField.value.trim()) {
-                    titleField.value = data.metadata.label;
+        client.on('story_removed', (data) => {
+            if (sessionState && data.index < sessionState.stories.length) {
+                sessionState.stories.splice(data.index, 1);
+                renderMgmtQueue();
+                // If we were editing the removed story, close edit panel
+                if (editingStoryIndex === data.index) {
+                    editingStoryIndex = null;
+                    document.getElementById('storyEditPanel').open = false;
+                } else if (editingStoryIndex !== null && editingStoryIndex > data.index) {
+                    editingStoryIndex--;
                 }
-                if (data.metadata.metadata_text && !textField.value.trim()) {
-                    textField.value = data.metadata.metadata_text;
-                }
+            }
+            updateSessionCounts({stories: sessionState.stories});
+        });
+
+        client.on('stories_update', (data) => {
+            if (sessionState) {
+                sessionState.stories = data.stories;
+                renderMgmtQueue();
+                updateSessionCounts({stories: data.stories});
             }
         });
 
         client.on('round_started', (data) => {
+            if (data.server_time) updateClockOffset(data.server_time);
             updateStatus('running');
-            document.getElementById('liveStoryText').innerHTML = '';
-            document.getElementById('textOnlyContainer').innerHTML = '';
 
-            // Set up canvases
-            currentCanvases = data.canvases || [];
-            currentCanvasIndex = data.canvas_index || 0;
-
-            const container = document.getElementById('osdViewerContainer');
-            if (currentCanvases.length > 0) {
-                container.style.display = 'block';
-                showCanvasLabel(currentCanvases[currentCanvasIndex].label);
-                initOsdViewer(currentCanvases[currentCanvasIndex]);
-            } else {
-                container.style.display = 'none';
-                destroyOsdViewer();
-            }
+            // Start header timer
+            const timerEl = document.getElementById('headerTimer');
+            timerEl.style.display = 'flex';
+            if (timer) timer.stop();
+            timer = new Timer(Infinity, (elapsed) => {
+                timerEl.textContent = formatTime(elapsed);
+            });
+            timer.start(data.start_time || (Date.now() / 1000));
 
             if (sessionState) {
                 sessionState.current_round.status = 'running';
-                sessionState.current_round.text_paragraph_count = data.text_paragraph_count || 0;
-                renderItemQueue();
+                sessionState.current_round.text_line_count = data.text_line_count || 0;
+                renderMgmtQueue();
             }
-
-            updateCanvasControls();
-            updateSelectedItemDisplay();
-            updateParagraphProgress(0, data.text_paragraph_count || 0);
-        });
-
-        client.on('canvas_advanced', (data) => {
-            currentCanvasIndex = data.canvas_index;
-
-            if (data.canvas) {
-                showCanvasLabel(data.canvas.label);
-                if (osdViewer) {
-                    osdViewer.open(getTileSource(data.canvas));
-                } else {
-                    initOsdViewer(data.canvas);
-                }
-            }
-
-            updateCanvasControls();
+            updateSelectedStoryDisplay();
+            updateTextProgress(0, data.text_line_count || 0);
         });
 
         client.on('text_advanced', (data) => {
-            updateParagraphProgress(data.position + 1, data.total);
-            appendParagraph(data.paragraph);
+            updateTextProgress(data.position + 1, data.total);
+            appendStoryLine(data.line);
         });
 
         client.on('paused', (data) => {
-            updateStatus('paused', currentParagraphProgress.position, currentParagraphProgress.total);
+            updateStatus('paused', currentLineProgress.position, currentLineProgress.total);
+            if (timer) timer.pause();
             if (sessionState) {
                 sessionState.current_round.status = 'paused';
-                renderItemQueue();
+                renderMgmtQueue();
             }
-            updateCanvasControls();
         });
 
         client.on('resumed', (data) => {
-            updateStatus('running', currentParagraphProgress.position, currentParagraphProgress.total);
+            updateStatus('running', currentLineProgress.position, currentLineProgress.total);
+            if (timer) timer.resume(data.timestamp - data.elapsed);
             if (sessionState) {
                 sessionState.current_round.status = 'running';
-                renderItemQueue();
+                renderMgmtQueue();
             }
-            updateCanvasControls();
         });
 
         client.on('round_ended', (data) => {
             updateStatus('ended');
+            if (timer) timer.stop();
+            showOutcome(data.outcome);
+            if (data.outcome === 'victory') {
+                playVictoryFanfare();
+            }
             if (sessionState) {
                 sessionState.current_round.status = 'ended';
                 sessionState.history.push({
@@ -855,31 +897,29 @@
                     ...data
                 });
                 renderHistory();
-                renderItemQueue();
+                renderMgmtQueue();
             }
         });
 
         client.on('round_reset', () => {
             updateStatus('waiting');
-            clearItemText();
-            currentParagraphProgress = { position: 0, total: 0 };
-            currentCanvases = [];
-            currentCanvasIndex = 0;
-            destroyOsdViewer();
-            document.getElementById('osdViewerContainer').style.display = 'none';
-            document.getElementById('canvasLabel').style.display = 'none';
-            updateCanvasControls();
-
+            hideOutcome();
+            clearStoryText();
+            currentLineProgress = { position: 0, total: 0 };
+            if (timer) timer.stop();
+            if (countdown) countdown.cancel();
+            document.getElementById('headerTimer').style.display = 'none';
             if (sessionState) {
                 sessionState.current_round.status = 'waiting';
-                sessionState.current_round.item_index = null;
-                updateSelectedItemDisplay();
-                renderItemQueue();
+                sessionState.current_round.story_index = null;
+                updateSelectedStoryDisplay();
+                renderMgmtQueue();
             }
         });
 
         client.on('session_imported', async (data) => {
-            await customAlert(`Imported ${data.items.length} items`);
+            await customAlert(`Imported ${data.story_count} stories`);
+            // Trigger refresh by requesting session state
             if (params.code) {
                 client.joinSession(params.code, 'controller');
             }
@@ -896,48 +936,10 @@
             if (!sessionState) return;
 
             document.getElementById('sessionCode').textContent = sessionState.code || '----';
-            renderItemQueue();
+            renderMgmtQueue();
             renderHistory();
             updateStatus(sessionState.current_round.status);
-            updateSelectedItemDisplay();
-        }
-
-        function renderItemQueue() {
-            const queue = document.getElementById('itemQueue');
-            if (!sessionState || !sessionState.items || sessionState.items.length === 0) {
-                queue.innerHTML = `
-                    <li class="empty-state">
-                        No items yet.
-                        <span class="cta">Add your first item to get started ↓</span>
-                    </li>
-                `;
-
-                const itemMgmt = document.getElementById('itemManagement');
-                if (itemMgmt && itemMgmt.classList.contains('collapsed')) {
-                    itemMgmt.classList.remove('collapsed');
-                }
-                return;
-            }
-
-            const status = sessionState.current_round.status;
-            const roundActive = status === 'running' || status === 'paused';
-
-            queue.innerHTML = sessionState.items.map((item, i) => {
-                const isCurrent = i === sessionState.current_round.item_index;
-                const disabledClass = roundActive ? 'disabled' : '';
-                const canvasCount = (item.canvases || []).length;
-                const hasImage = canvasCount > 0 ? `\u{1F5BC}\uFE0F ${canvasCount}` : '\u{1F4C4}';
-                return `
-                    <li class="story-item ${isCurrent ? 'current' : ''} ${disabledClass}" onclick="selectItem(${i})">
-                        <div class="story-info">
-                            <strong>${hasImage} ${escapeHtml(item.title)}</strong>
-                        </div>
-                        <div class="story-actions">
-                            <button onclick="event.stopPropagation(); removeItem(${i})">Remove</button>
-                        </div>
-                    </li>
-                `;
-            }).join('');
+            updateSelectedStoryDisplay();
         }
 
         function renderHistory() {
@@ -949,10 +951,15 @@
 
             list.innerHTML = sessionState.history.map(entry => {
                 const buzzCount = entry.buzzes ? entry.buzzes.length : 0;
+                const buzzHistory = entry.buzz_history || [];
+                const buzzDetails = buzzHistory.map(b =>
+                    `${escapeHtml(b.judge_name)} @ ${b.time}s`
+                ).join(', ');
+                const buzzInfo = buzzDetails ? ` [${buzzDetails}]` : '';
                 return `
                     <li class="history-item ${entry.outcome}">
                         ${escapeHtml(entry.title)} — ${entry.outcome.toUpperCase()}
-                        <span style="font-size: var(--text-caption); opacity: 0.7;">(${entry.duration}s, ${buzzCount} buzz${buzzCount !== 1 ? 'es' : ''})</span>
+                        <span style="font-size: var(--text-caption); opacity: 0.7;">(${entry.duration}s, ${buzzCount} buzz${buzzCount !== 1 ? 'es' : ''}${buzzInfo})</span>
                     </li>
                 `;
             }).join('');
@@ -964,13 +971,14 @@
             let statusText;
             if ((status === 'running' || status === 'paused') && position !== null && total !== null && position > 0) {
                 const statusWord = status === 'paused' ? 'paused' : 'running';
-                statusText = `Status: ${statusWord}, paragraph ${position}/${total}`;
+                statusText = `Status: ${statusWord}, part ${position}/${total}`;
             } else if (status === 'waiting') {
-                const hasItem = sessionState && sessionState.current_round.item_index !== null;
-                statusText = hasItem ? 'Status: waiting' : 'Status: select an item';
+                const hasStory = sessionState && sessionState.current_round.story_index !== null;
+                statusText = hasStory ? 'Status: waiting' : 'Status: select a story';
             } else {
-                const hasItem = sessionState && sessionState.current_round.item_index !== null;
-                statusText = hasItem ? `Status: ${status}` : 'Status: select an item';
+                // For other states, check if story is selected
+                const hasStory = sessionState && sessionState.current_round.story_index !== null;
+                statusText = hasStory ? `Status: ${status}` : 'Status: select a story';
             }
 
             statusEl.textContent = statusText;
@@ -989,89 +997,164 @@
             pauseBtn.textContent = (status === 'paused') ? 'Resume' : 'Pause';
         }
 
-        function updateParagraphProgress(position, total) {
-            currentParagraphProgress = { position, total };
+        function updateTextProgress(position, total) {
+            currentLineProgress = { position, total };
             if (sessionState && sessionState.current_round.status === 'running') {
                 updateStatus('running', position, total);
             }
         }
 
-        function getTextTarget() {
-            // When OSD viewer is visible, use overlay; otherwise text-only container
-            const osdContainer = document.getElementById('osdViewerContainer');
-            if (osdContainer && osdContainer.style.display !== 'none') {
-                return document.getElementById('liveStoryText');
-            }
-            return document.getElementById('textOnlyContainer');
-        }
-
-        function appendParagraph(paragraph) {
-            const textEl = getTextTarget();
+        function appendStoryLine(line) {
+            const textEl = document.getElementById('liveStoryText');
+            // Clear placeholder on first line
             const placeholder = textEl.querySelector('.empty-text');
             if (placeholder) placeholder.remove();
 
-            const paraEl = document.createElement('div');
-            paraEl.className = 'text-line';
-            paraEl.style.marginBottom = '0.5rem';
-            paraEl.style.padding = '0.5rem';
-            paraEl.style.background = currentCanvases.length > 0 ? 'rgba(0, 0, 0, 0.8)' : 'transparent';
-            paraEl.style.borderLeft = '2px solid var(--soviet-ochre)';
-            paraEl.textContent = paragraph;
+            const lineSpan = document.createElement('span');
+            lineSpan.className = 'text-line';
+            lineSpan.textContent = line;
 
-            textEl.appendChild(paraEl);
+            if (textEl.children.length > 0) {
+                const br = document.createElement('br');
+                textEl.appendChild(br);
+            }
+            textEl.appendChild(lineSpan);
 
             setTimeout(() => {
-                if (currentCanvases.length > 0) {
-                    const overlay = document.getElementById('textOverlay');
-                    if (overlay) overlay.scrollTop = overlay.scrollHeight;
-                } else {
-                    paraEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
+                lineSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 100);
         }
 
-        function clearItemText() {
-            document.getElementById('liveStoryText').innerHTML = '';
-            const textOnly = document.getElementById('textOnlyContainer');
-            const index = sessionState ? sessionState.current_round.item_index : null;
+        function showOutcome(outcome) {
+            const el = document.getElementById('outcome');
+            el.textContent = outcome === 'victory' ? 'SURVIVOR!' : 'BUZZED OUT';
+            el.className = `outcome ${outcome}`;
+            el.style.display = 'block';
+        }
 
-            if (index !== null && sessionState.items[index]) {
-                textOnly.innerHTML = '';
+        function hideOutcome() {
+            document.getElementById('outcome').style.display = 'none';
+        }
+
+        function clearStoryText() {
+            const textEl = document.getElementById('liveStoryText');
+            const index = sessionState ? sessionState.current_round.story_index : null;
+
+            if (index !== null && sessionState.stories[index]) {
+                // Show dimmed preview of full story text
+                textEl.innerHTML = '';
                 const preview = document.createElement('div');
                 preview.style.opacity = '0.3';
                 preview.style.whiteSpace = 'pre-wrap';
                 preview.style.lineHeight = '1.7';
-                preview.textContent = sessionState.items[index].text;
-                textOnly.appendChild(preview);
+                preview.textContent = sessionState.stories[index].text;
+                textEl.appendChild(preview);
             } else {
-                textOnly.innerHTML = '<span class="empty-text">Metadata paragraphs appear here during round...</span>';
+                textEl.innerHTML = '<span class="empty-text">Story text appears here during round...</span>';
             }
         }
 
-        function fetchManifest() {
-            const manifestUrl = document.getElementById('manifestUrl').value.trim();
-            const status = document.getElementById('manifestStatus');
+        // --- Story management (2-column: queue left, edit form right) ---
 
-            if (!manifestUrl) {
-                status.textContent = '';
+        function renderMgmtQueue() {
+            const queue = document.getElementById('mgmtStoryQueue');
+            if (!sessionState || !sessionState.stories || sessionState.stories.length === 0) {
+                queue.innerHTML = `
+                    <li class="empty-state">
+                        No stories yet.
+                        <span class="cta">Click "+ Add Story" below ↓</span>
+                    </li>
+                `;
                 return;
             }
 
-            status.textContent = 'Fetching manifest...';
-            status.style.color = 'var(--soviet-gold)';
-            document.getElementById('fetchManifestBtn').disabled = true;
+            const status = sessionState.current_round.status;
+            const roundActive = status === 'running' || status === 'paused';
 
-            client.fetchManifest(manifestUrl);
+            queue.innerHTML = sessionState.stories.map((story, i) => {
+                const isCurrent = i === sessionState.current_round.story_index;
+                const editingClass = i === editingStoryIndex ? 'editing' : '';
+                const disabledClass = roundActive ? 'disabled' : '';
+
+                // Determine status marker
+                let statusHtml = '';
+                const roundStatus = sessionState.current_round.status;
+                if (isCurrent && (roundStatus === 'running' || roundStatus === 'countdown')) {
+                    statusHtml = '<span class="story-status running">RUNNING</span>';
+                } else if (isCurrent && roundStatus === 'paused') {
+                    statusHtml = '<span class="story-status paused">PAUSED</span>';
+                } else if (sessionState.history) {
+                    const entry = sessionState.history.find(h => h.title === story.title);
+                    if (entry && entry.outcome === 'victory') {
+                        statusHtml = '<span class="story-status victory">SURVIVOR</span>';
+                    } else if (entry && entry.outcome === 'defeat') {
+                        statusHtml = '<span class="story-status defeat">BUZZED OUT</span>';
+                    }
+                }
+
+                return `
+                    <li class="story-item ${isCurrent ? 'current' : ''} ${editingClass} ${disabledClass}" onclick="selectStory(${i})">
+                        <div class="story-info">
+                            <strong>${i + 1}. ${escapeHtml(story.title)}</strong>
+                        </div>
+                        ${statusHtml}
+                    </li>
+                `;
+            }).join('');
         }
 
-        async function addItem() {
-            const title = document.getElementById('itemTitle').value.trim();
-            const text = document.getElementById('itemText').value.trim();
-            const manifestUrl = document.getElementById('manifestUrl').value.trim() || null;
-            const canvases = formCanvases;
+        function editStory(index) {
+            if (!sessionState || !sessionState.stories[index]) return;
+
+            const story = sessionState.stories[index];
+            document.getElementById('storyTitle').value = story.title;
+            document.getElementById('storyText').value = story.text;
+            editingStoryIndex = index;
+            formDirty = false;
+
+            document.getElementById('storyFormTitle').textContent = 'Edit: ' + story.title;
+            document.getElementById('saveStoryBtn').textContent = 'Update';
+            document.getElementById('saveStoryBtn').disabled = true;
+            document.getElementById('removeStoryBtn').style.display = '';
+
+            renderMgmtQueue();
+        }
+
+        function addNewStory() {
+            editingStoryIndex = null;
+            formDirty = false;
+            document.getElementById('storyTitle').value = '';
+            document.getElementById('storyText').value = '';
+
+            const panel = document.getElementById('storyEditPanel');
+            panel.open = true;
+            document.getElementById('storyFormTitle').textContent = 'Add Story';
+            document.getElementById('saveStoryBtn').textContent = 'Create';
+            document.getElementById('saveStoryBtn').disabled = false;
+            document.getElementById('removeStoryBtn').style.display = 'none';
+
+            renderMgmtQueue();
+        }
+
+        // Enable import button when textarea has content
+        document.getElementById('importExportJson').addEventListener('input', updateImportBtnState);
+
+        // Enable save button on edits
+        document.getElementById('storyTitle').addEventListener('input', () => {
+            formDirty = true;
+            document.getElementById('saveStoryBtn').disabled = false;
+        });
+        document.getElementById('storyText').addEventListener('input', () => {
+            formDirty = true;
+            document.getElementById('saveStoryBtn').disabled = false;
+        });
+
+        async function saveStory() {
+            const title = document.getElementById('storyTitle').value.trim();
+            const text = document.getElementById('storyText').value.trim();
 
             if (!title || !text) {
-                await customAlert('Enter both title and metadata text');
+                await customAlert('Enter both title and text');
                 return;
             }
 
@@ -1084,140 +1167,80 @@
                 return;
             }
 
-            const wasEmpty = !sessionState || sessionState.items.length === 0;
-
-            client.addItem(title, text, manifestUrl, canvases);
-
-            if (wasEmpty && sessionState) {
-                const itemMgmt = document.getElementById('itemManagement');
-                itemMgmt.classList.add('collapsed');
-            }
-
-            document.getElementById('itemTitle').value = '';
-            document.getElementById('itemText').value = '';
-            document.getElementById('manifestUrl').value = '';
-            formCanvases = [];
-            document.getElementById('manifestStatus').textContent = '';
-            editingItemIndex = null;
-            updateFormUI();
-        }
-
-        function loadItemForEditing(index) {
-            if (!sessionState || !sessionState.items[index]) return;
-
-            const item = sessionState.items[index];
-            document.getElementById('itemTitle').value = item.title;
-            document.getElementById('itemText').value = item.text;
-            document.getElementById('manifestUrl').value = item.manifest_url || '';
-            formCanvases = item.canvases || [];
-            const status = document.getElementById('manifestStatus');
-            if (formCanvases.length > 0) {
-                status.textContent = `${formCanvases.length} canvas${formCanvases.length !== 1 ? 'es' : ''} loaded`;
-                status.style.color = 'var(--soviet-gold)';
+            if (editingStoryIndex !== null) {
+                // Update existing story
+                client.send('update_story', {
+                    story_index: editingStoryIndex,
+                    title: title,
+                    text: text
+                });
+                // Optimistic local update
+                sessionState.stories[editingStoryIndex] = {title, text};
+                renderMgmtQueue();
             } else {
-                status.textContent = '';
+                // Add new story
+                const wasEmpty = !sessionState || sessionState.stories.length === 0;
+                client.addStory(title, text);
+                if (sessionState) {
+                    sessionState.stories.push({title, text});
+                    renderMgmtQueue();
+                    if (wasEmpty) {
+                        document.getElementById('storyManagement').classList.add('collapsed');
+                    }
+                }
             }
-            editingItemIndex = index;
-            updateFormUI();
 
-            const itemMgmt = document.getElementById('itemManagement');
-            itemMgmt.classList.remove('collapsed');
+            document.getElementById('saveStoryBtn').disabled = true;
+            formDirty = false;
         }
 
-        function updateFormUI() {
-            const formTitle = document.getElementById('itemFormTitle');
-            const saveBtn = document.getElementById('saveItemBtn');
-            const cancelBtn = document.getElementById('cancelEditBtn');
-
-            if (editingItemIndex !== null) {
-                formTitle.textContent = 'Edit Item';
-                saveBtn.textContent = 'Update Item';
-                cancelBtn.classList.add('visible');
-            } else {
-                formTitle.textContent = 'Add Item';
-                saveBtn.textContent = 'Add Item';
-                cancelBtn.classList.remove('visible');
-            }
-        }
-
-        async function saveItem() {
-            if (editingItemIndex !== null) {
-                await updateItem();
-            } else {
-                await addItem();
+        async function removeEditingStory() {
+            if (editingStoryIndex === null) return;
+            if (await customConfirm('Remove this story?')) {
+                client.removeStory(editingStoryIndex);
+                document.getElementById('storyEditPanel').open = false;
+                editingStoryIndex = null;
             }
         }
 
-        async function updateItem() {
-            const title = document.getElementById('itemTitle').value.trim();
-            const text = document.getElementById('itemText').value.trim();
-            const manifestUrl = document.getElementById('manifestUrl').value.trim() || null;
-            const canvases = formCanvases;
-
-            if (!title || !text) {
-                await customAlert('Enter both title and metadata text');
-                return;
-            }
-
-            if (!sessionState || editingItemIndex === null) return;
-
-            sessionState.items[editingItemIndex] = {title, text, manifest_url: manifestUrl, canvases: canvases};
-            renderItemQueue();
-
-            document.getElementById('itemTitle').value = '';
-            document.getElementById('itemText').value = '';
-            document.getElementById('manifestUrl').value = '';
-            formCanvases = [];
-            document.getElementById('manifestStatus').textContent = '';
-            editingItemIndex = null;
-            updateFormUI();
-        }
-
-        function cancelEdit() {
-            document.getElementById('itemTitle').value = '';
-            document.getElementById('itemText').value = '';
-            document.getElementById('manifestUrl').value = '';
-            formCanvases = [];
-            document.getElementById('manifestStatus').textContent = '';
-            editingItemIndex = null;
-            updateFormUI();
-        }
-
-        async function selectItem(index) {
+        async function selectStory(index) {
             if (!sessionState) return;
 
+            // Block story selection during active round
             const status = sessionState.current_round.status;
             if (status === 'running' || status === 'paused') {
-                await customAlert('Cannot change item during active round. Reset or wait for round to end.');
+                await customAlert('Cannot change story during active round. Close round or wait for it to end.');
                 return;
             }
 
-            sessionState.current_round.item_index = index;
-            renderItemQueue();
-            updateSelectedItemDisplay();
-
-            loadItemForEditing(index);
-            clearItemText();
+            sessionState.current_round.story_index = index;
+            sessionState.current_round.title = sessionState.stories[index].title;
+            updateSelectedStoryDisplay();
+            clearStoryText();
+            editStory(index);
         }
 
-        function updateSelectedItemDisplay() {
-            const headerEl = document.getElementById('headerItemTitle');
+        function updateSelectedStoryDisplay() {
+            const headerEl = document.getElementById('headerStoryTitle');
             if (!sessionState) return;
 
-            const index = sessionState.current_round.item_index;
-            if (index !== null && sessionState.items[index]) {
-                const title = sessionState.items[index].title;
+            const index = sessionState.current_round.story_index;
+            if (index !== null && sessionState.stories[index]) {
+                const title = sessionState.stories[index].title;
                 headerEl.textContent = title;
                 headerEl.classList.remove('waiting');
 
+                // Update status when story selected
                 const currentStatus = sessionState.current_round.status;
                 if (currentStatus === 'waiting' || currentStatus === 'ended') {
                     updateStatus('waiting');
                 }
             } else {
-                headerEl.textContent = 'No item selected';
+                headerEl.textContent = 'No story selected';
                 headerEl.classList.add('waiting');
-                updateStatus('waiting');
+
+                // Update status when no story selected
+                updateStatus('waiting'); // Will become "select a story" in updateStatus
             }
         }
 
@@ -1225,29 +1248,34 @@
             document.getElementById(id).classList.toggle('collapsed');
         }
 
-        async function removeItem(index) {
-            if (await customConfirm('Remove this item?')) {
-                client.removeItem(index);
-            }
-        }
 
         async function startRound() {
             const btn = document.getElementById('startBtn');
             if (btn.disabled) return;
 
-            if (!sessionState || sessionState.current_round.item_index === null) {
-                await customAlert('Select an item first');
+            if (!sessionState || sessionState.current_round.story_index === null) {
+                await customAlert('Select a story first');
                 return;
             }
 
             btn.disabled = true;
-            client.startRound(sessionState.current_round.item_index);
+            client.send('countdown_start', { story_index: sessionState.current_round.story_index });
+            // Will be re-enabled by round_started event via updateStatus()
         }
 
-        async function resetRound() {
-            if (await customConfirm('Reset the current round?')) {
+        async function closeRound() {
+            if (await customConfirm('Close this round early?')) {
                 client.resetRound();
             }
+        }
+
+        function toggleAudienceQR(visible) {
+            audienceQRVisible = visible;
+            client.send('toggle_audience_qr', { visible: audienceQRVisible });
+        }
+
+        function toggleTimerVisibility(visible) {
+            client.send('toggle_timer_visibility', { visible: visible });
         }
 
         function advanceText() {
@@ -1258,9 +1286,11 @@
                 return;
             }
 
+            // Prevent double-click
             btn.disabled = true;
             client.advanceText();
 
+            // Re-enable after short delay
             setTimeout(() => {
                 if (sessionState && sessionState.current_round.status === 'running') {
                     btn.disabled = false;
@@ -1268,26 +1298,18 @@
             }, 300);
         }
 
-        function advanceCanvas(direction) {
-            if (!sessionState || sessionState.current_round.status !== 'running') return;
-            client.canvasAdvance(direction);
-        }
-
+        // Keyboard shortcut: spacebar or right arrow to advance text
         document.addEventListener('keydown', (e) => {
+            // Don't capture if typing in an input/textarea
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+            // Don't capture if modal is open
             const modalOverlay = document.getElementById('modalOverlay');
             if (modalOverlay && modalOverlay.classList.contains('active')) return;
 
             if (e.code === 'Space' || e.code === 'ArrowRight') {
                 e.preventDefault();
                 advanceText();
-            } else if (e.code === 'ArrowUp') {
-                e.preventDefault();
-                advanceCanvas('prev');
-            } else if (e.code === 'ArrowDown') {
-                e.preventDefault();
-                advanceCanvas('next');
             }
         });
 
@@ -1305,11 +1327,17 @@
             if (!sessionState) return;
 
             const exportData = {
-                items: sessionState.items,
+                stories: sessionState.stories,
                 config: sessionState.config
             };
 
-            document.getElementById('importExportJson').value = JSON.stringify(exportData, null, 2);
+            const json = JSON.stringify(exportData, null, 2);
+            const textarea = document.getElementById('importExportJson');
+            textarea.value = json;
+            updateImportBtnState();
+
+            // Silently copy to clipboard if possible
+            try { navigator.clipboard.writeText(json); } catch (e) {}
         }
 
         async function copyHistory() {
@@ -1319,32 +1347,62 @@
             }
 
             const historyJson = JSON.stringify(sessionState.history, null, 2);
-            navigator.clipboard.writeText(historyJson).then(async () => {
+            if (await copyToClipboard(historyJson)) {
                 await customAlert('History copied to clipboard!');
-            }).catch(async err => {
-                console.error('Failed to copy:', err);
-                await customAlert('Failed to copy history');
-            });
+            } else {
+                await customAlert('Copy failed — history logged to console');
+                console.log(historyJson);
+            }
+        }
+
+        async function copyToClipboard(text) {
+            // Try modern API first
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (e) {}
+            // Fallback: temporary textarea + execCommand
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                return ok;
+            } catch (e) {
+                return false;
+            }
         }
 
         async function importSession() {
-            const json = document.getElementById('importExportJson').value.trim();
-            if (!json) {
-                await customAlert('Paste JSON first');
-                return;
-            }
+            const textarea = document.getElementById('importExportJson');
+            const json = textarea.value.trim();
+            if (!json) return;
 
             try {
                 const data = JSON.parse(json);
-                client.importSession(data.items || [], data.config || {});
+                client.importSession(data.stories || [], data.config || {});
+                textarea.value = '';
+                updateImportBtnState();
             } catch (e) {
                 await customAlert('Invalid JSON: ' + e.message);
             }
         }
 
+        function updateImportBtnState() {
+            const textarea = document.getElementById('importExportJson');
+            const importBtn = document.getElementById('importBtn');
+            if (importBtn) {
+                importBtn.disabled = !textarea.value.trim();
+            }
+        }
+
         function updateSessionCounts(data) {
-            if (data.items !== undefined) {
-                document.getElementById('itemCount').textContent = data.items.length;
+            if (data.stories !== undefined) {
+                document.getElementById('storyCount').textContent = data.stories.length;
             }
             if (data.connected_judges !== undefined) {
                 document.getElementById('judgeCount').textContent = data.connected_judges.length;
@@ -1369,6 +1427,7 @@
         async function deleteSession() {
             if (await customConfirm('DELETE SESSION? This will eject all judges, shutdown all audience screens, and delete the session. This cannot be undone.')) {
                 client.send('delete_session');
+                // Redirect back to home after deletion
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 1000);
