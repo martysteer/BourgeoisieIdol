@@ -2,6 +2,39 @@
 
 All notable changes to BourgeoisieIdol will be documented in this file.
 
+## [3.0.0] - 2026-09-26
+
+### Added
+- **Rebased onto SpecIdol HEAD** — all SpecIdol improvements since fork now included:
+  - 3-2-1-GO countdown with synth beeps before rounds
+  - `sounds.js` Web Audio synth engine (buzz sounds, victory fanfare, ahooga, tension ticks)
+  - QR code overlay on audience view (toggleable from controller)
+  - Timer visibility toggle (hide/show timer on audience and judge views)
+  - `buzz-tester.html` — standalone page for testing buzz sounds
+  - `judge-test.html` — multi-judge testing dashboard
+  - Judge name editing with localStorage persistence
+  - Service worker for offline caching
+- **OpenSeadragon IIIF viewer** on audience, judge, and controller views
+  - Neon green (`#0f0`) nav icon SVGs matching SpecIdol palette
+  - Canvas navigation (prev/next) with keyboard arrow shortcuts
+  - Canvas label display
+  - `prefers-reduced-motion` respected for OSD animations
+- **IIIF manifest fetching** — controller manifest URL input with Fetch button
+  - Auto-populate item title and text from manifest metadata
+  - Canvas extraction from IIIF Presentation API v2 and v3
+- **Canvas advance** — controller navigates between canvases during live round
+
+### Changed
+- **Codebase rebased** from SpecIdol commit `35dfafb` (2026-05-15)
+- **All SpecIdol UX improvements** integrated (countdown, sounds, QR, mobile fixes)
+- **Soviet mosaic visual reskin removed** — retains SpecIdol's neon green game-show aesthetic
+- **Paragraph-based text reveal** — text split on `\n\n` instead of sentence boundaries
+
+### Removed
+- Soviet color palette (ochre, workers' red, industrial blue)
+- `.geometric-frame`, `.tessellated-bg`, `.diagonal-emphasis` CSS classes
+- Soviet-themed OSD navigation icons
+
 ## [2.1.0] - 2026-04-29
 
 ### Added
