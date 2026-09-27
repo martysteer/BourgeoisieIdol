@@ -147,6 +147,10 @@ class SpecIdolClient {
         this.send('toggle_canvas', { visible });
     }
 
+    viewportSync(zoom, center) {
+        this.send('viewport_sync', { zoom, center });
+    }
+
     changeSpeed(speed) {
         this.send('speed_change', { speed });
     }

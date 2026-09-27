@@ -714,6 +714,7 @@
         let osdViewer = null;
         let formCanvases = [];
         let canvasMode = false;
+        let vpSyncTimer = null;
 
         function osdIcon(svg) {
             return 'data:image/svg+xml,' + encodeURIComponent(
@@ -767,9 +768,25 @@
                 prefixUrl: '',
                 navImages: OSD_NAV_IMAGES
             });
+            attachViewportSync();
+        }
+
+        function attachViewportSync() {
+            if (!osdViewer) return;
+            osdViewer.addHandler('viewport-change', () => {
+                if (vpSyncTimer) return;
+                vpSyncTimer = setTimeout(() => {
+                    vpSyncTimer = null;
+                    if (!osdViewer) return;
+                    const vp = osdViewer.viewport;
+                    const c = vp.getCenter();
+                    client.viewportSync(vp.getZoom(), {x: c.x, y: c.y});
+                }, 150);
+            });
         }
 
         function destroyOsdViewer() {
+            if (vpSyncTimer) { clearTimeout(vpSyncTimer); vpSyncTimer = null; }
             if (osdViewer) { osdViewer.destroy(); osdViewer = null; }
         }
 

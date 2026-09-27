@@ -449,6 +449,14 @@
                         button.disabled = true;
                     }
                 }
+                // Restore viewport position on late-join
+                if (round.viewport && osdViewer) {
+                    osdViewer.addOnceHandler('open', () => {
+                        const vp = osdViewer.viewport;
+                        vp.zoomTo(round.viewport.zoom, null, true);
+                        vp.panTo(new OpenSeadragon.Point(round.viewport.center.x, round.viewport.center.y), true);
+                    });
+                }
             } else if (round.status === 'defeat' || round.status === 'victory') {
                 startRound(round);
                 if (round.buzzes) {
@@ -606,6 +614,13 @@
                     initOsdViewer(data.canvas);
                 }
             }
+        });
+
+        client.on('viewport_sync', (data) => {
+            if (!osdViewer) return;
+            const vp = osdViewer.viewport;
+            vp.zoomTo(data.zoom, null, true);
+            vp.panTo(new OpenSeadragon.Point(data.center.x, data.center.y), true);
         });
 
         client.on('speed_changed', (data) => {

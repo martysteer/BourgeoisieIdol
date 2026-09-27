@@ -172,7 +172,8 @@ CONTROLLER_ONLY = {"add_item", "remove_item", "update_item", "round_start",
                     "speed_change", "pause", "resume", "reset_round", "text_advance",
                     "canvas_advance", "import_session", "eject_judges", "shutdown_audience",
                     "delete_session", "countdown_start", "toggle_audience_qr",
-                    "toggle_timer_visibility", "fetch_manifest", "toggle_canvas"}
+                    "toggle_timer_visibility", "fetch_manifest", "toggle_canvas",
+                    "viewport_sync"}
 
 def get_connected_judges(session):
     """Return sorted list of {id, name} for connected judges"""
@@ -790,6 +791,17 @@ async def handle_message(websocket, message_data):
             "type": "toggle_canvas",
             "data": {"visible": visible}
         })
+
+    elif msg_type == "viewport_sync":
+        viewport = {
+            "zoom": data.get("zoom"),
+            "center": data.get("center")
+        }
+        session["current_round"]["viewport"] = viewport
+        await broadcast_to_session(session_code, {
+            "type": "viewport_sync",
+            "data": viewport
+        }, exclude=websocket)
 
     elif msg_type == "eject_judges":
         # Close all judge websockets with message
