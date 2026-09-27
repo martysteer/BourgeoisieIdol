@@ -815,7 +815,7 @@
             if (countdown) countdown.cancel();
             destroyOsdViewer();
             buzzed = false;
-            canvasMode = false;
+            // ponytail: canvasMode NOT reset here — it's a global toggle, not per-round state
 
             // Reset title
             document.getElementById('itemTitle').textContent = '';

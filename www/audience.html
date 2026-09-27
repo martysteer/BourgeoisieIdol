@@ -711,7 +711,7 @@
         function resetView() {
             stopTensionTicks();
             tensionMode = false;
-            canvasMode = false;
+            // ponytail: canvasMode NOT reset here — it's a global toggle, not per-round state
 
             // Stop timer
             if (timer) timer.stop();
