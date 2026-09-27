@@ -143,6 +143,10 @@ class SpecIdolClient {
         this.send('canvas_advance', { direction });
     }
 
+    toggleCanvas(visible) {
+        this.send('toggle_canvas', { visible });
+    }
+
     changeSpeed(speed) {
         this.send('speed_change', { speed });
     }
