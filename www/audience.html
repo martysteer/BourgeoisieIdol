@@ -248,6 +248,7 @@
 
         let osdViewer = null;
         let canvasMode = false;
+        let pendingViewport = null;
 
         function osdIcon(svg, color = '#0f0') {
             return 'data:image/svg+xml,' + encodeURIComponent(
@@ -291,18 +292,26 @@
 
         function initOsdViewer(canvas) {
             destroyOsdViewer();
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             osdViewer = OpenSeadragon({
                 element: document.getElementById('osdViewer'),
                 tileSources: getTileSource(canvas),
                 showNavigator: false,
-                showNavigationControl: true,
-                gestureSettingsMouse: { scrollToZoom: true },
-                animationTime: prefersReducedMotion ? 0 : 1.2,
-                springStiffness: prefersReducedMotion ? 100 : 6.5,
+                showNavigationControl: false,
+                mouseNavEnabled: false,
+                gestureSettingsMouse: { scrollToZoom: false, clickToZoom: false, dblClickToZoom: false },
+                gestureSettingsTouch: { pinchToZoom: false, flickEnabled: false },
+                animationTime: 0,
                 prefixUrl: '',
                 navImages: OSD_NAV_IMAGES
             });
+            if (pendingViewport) {
+                osdViewer.addOnceHandler('open', () => {
+                    const vp = osdViewer.viewport;
+                    vp.zoomTo(pendingViewport.zoom, null, true);
+                    vp.panTo(new OpenSeadragon.Point(pendingViewport.center.x, pendingViewport.center.y), true);
+                    pendingViewport = null;
+                });
+            }
         }
 
         function destroyOsdViewer() {
@@ -376,13 +385,9 @@
                 if (round.status === 'paused') {
                     if (timer) timer.pause();
                 }
-                // Restore viewport position on late-join
-                if (round.viewport && osdViewer) {
-                    osdViewer.addOnceHandler('open', () => {
-                        const vp = osdViewer.viewport;
-                        vp.zoomTo(round.viewport.zoom, null, true);
-                        vp.panTo(new OpenSeadragon.Point(round.viewport.center.x, round.viewport.center.y), true);
-                    });
+                // Store viewport for restoration after OSD opens
+                if (round.viewport) {
+                    pendingViewport = round.viewport;
                 }
             } else if (round.status === 'defeat' || round.status === 'victory') {
                 startRound(round);
@@ -721,6 +726,7 @@
         function resetView() {
             stopTensionTicks();
             tensionMode = false;
+            pendingViewport = null;
             // ponytail: canvasMode NOT reset here — it's a global toggle, not per-round state
 
             // Stop timer
