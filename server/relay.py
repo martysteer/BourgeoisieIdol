@@ -164,6 +164,7 @@ def create_new_session(code):
         "judge_sounds": {},  # {judge_id: sound_index (0-4)}
         "audience_qr_visible": False,
         "timer_visible": True,
+        "canvas_visible": False,
         "buzz_history": []  # [{judge_id, judge_name, time, timestamp}, ...]
     }
 
@@ -171,7 +172,7 @@ CONTROLLER_ONLY = {"add_item", "remove_item", "update_item", "round_start",
                     "speed_change", "pause", "resume", "reset_round", "text_advance",
                     "canvas_advance", "import_session", "eject_judges", "shutdown_audience",
                     "delete_session", "countdown_start", "toggle_audience_qr",
-                    "toggle_timer_visibility", "fetch_manifest"}
+                    "toggle_timer_visibility", "fetch_manifest", "toggle_canvas"}
 
 def get_connected_judges(session):
     """Return sorted list of {id, name} for connected judges"""
@@ -281,6 +282,7 @@ async def handle_message(websocket, message_data):
                 "audience_count": sum(1 for c in session["clients"].values() if c.get("role") == "audience"),
                 "audience_qr_visible": session["audience_qr_visible"],
                 "timer_visible": session["timer_visible"],
+                "canvas_visible": session["canvas_visible"],
                 "server_time": time.time()
             }
         }))
@@ -779,6 +781,14 @@ async def handle_message(websocket, message_data):
                 *[ws.send(message) for ws in target_clients],
                 return_exceptions=True
             )
+
+    elif msg_type == "toggle_canvas":
+        visible = data.get("visible", True)
+        session["canvas_visible"] = visible
+        await broadcast_to_session(session_code, {
+            "type": "toggle_canvas",
+            "data": {"visible": visible}
+        })
 
     elif msg_type == "eject_judges":
         # Close all judge websockets with message
