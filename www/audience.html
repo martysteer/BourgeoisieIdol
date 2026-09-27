@@ -217,7 +217,9 @@
     <main class="page-content">
         <div id="osdViewerContainer" style="padding: 1rem;">
             <div id="canvasLabel"></div>
-            <div id="osdViewer"></div>
+            <div id="osdViewer">
+                <div id="osdPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--neon-green);opacity:0.4;font-size:var(--text-body);text-align:center;">Canvas area</div>
+            </div>
             <div id="textOverlay">
                 <div id="metadataParagraphs" aria-live="polite" aria-relevant="additions"></div>
             </div>
@@ -677,11 +679,12 @@
         function applyCanvasMode() {
             const osdContainer = document.getElementById('osdViewerContainer');
             const textContainer = document.querySelector('.story-text-container');
-            const hasOsd = osdViewer !== null;
+            const placeholder = document.getElementById('osdPlaceholder');
 
-            if (canvasMode && hasOsd) {
+            if (canvasMode) {
                 osdContainer.style.display = 'flex';
                 textContainer.style.display = 'none';
+                if (placeholder) placeholder.style.display = osdViewer ? 'none' : 'flex';
             } else {
                 osdContainer.style.display = 'none';
                 textContainer.style.display = '';

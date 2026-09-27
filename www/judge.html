@@ -235,7 +235,9 @@
         <div class="story-title" id="itemTitle" aria-live="polite"></div>
         <div id="osdViewerContainer">
             <div id="canvasLabel"></div>
-            <div id="osdViewer"></div>
+            <div id="osdViewer">
+                <div id="osdPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--neon-green);opacity:0.4;font-size:var(--text-body);text-align:center;">Canvas area</div>
+            </div>
             <div id="textOverlay">
                 <div id="metadataParagraphs" aria-live="polite" aria-relevant="additions"></div>
             </div>
@@ -370,8 +372,10 @@
 
         function applyCanvasMode() {
             const main = document.getElementById('main');
-            if (canvasMode && osdViewer) {
+            const placeholder = document.getElementById('osdPlaceholder');
+            if (canvasMode) {
                 main.classList.add('canvas-mode');
+                if (placeholder) placeholder.style.display = osdViewer ? 'none' : 'flex';
             } else {
                 main.classList.remove('canvas-mode');
             }
