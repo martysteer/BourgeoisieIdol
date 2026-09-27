@@ -187,6 +187,14 @@
             flex-direction: column;
             gap: 0.5rem;
         }
+
+        .overlay-paragraph {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0.75rem 1rem;
+            font-size: 1.4rem;
+            line-height: 1.6;
+            color: #fff;
+        }
     </style>
 </head>
 <body class="page-locked">
@@ -245,6 +253,7 @@
         let connectedJudges = [];  // [{id, name}, ...]
 
         let osdViewer = null;
+        let canvasMode = false;
 
         function osdIcon(svg, color = '#0f0') {
             return 'data:image/svg+xml,' + encodeURIComponent(
@@ -350,6 +359,10 @@
             if (data.timer_visible === false) {
                 document.getElementById('headerTimer').classList.add('timer-force-hidden');
             }
+            // Set initial canvas mode
+            if (data.canvas_visible === true) {
+                canvasMode = true;
+            }
             if (data.items) {
                 document.getElementById('itemCount').textContent = data.items.length;
             }
@@ -388,9 +401,25 @@
             titleEl.textContent = data.item_title || 'Untitled';
             titleEl.classList.remove('waiting');
 
-            // Show first paragraph during countdown
+            // Init OSD if canvases present
+            const hasCanvases = data.canvases && data.canvases.length > 0;
+            if (hasCanvases) {
+                const canvas = data.canvases[0];
+                if (canvas) {
+                    initOsdViewer(canvas);
+                    showCanvasLabel(canvas.label);
+                }
+            }
+            applyCanvasMode();
+
+            // Show first paragraph in correct container
             if (data.first_paragraph || data.first_line) {
-                appendTextLine(data.first_paragraph || data.first_line);
+                const text = data.first_paragraph || data.first_line;
+                if (canvasMode && osdViewer) {
+                    appendOverlayParagraph(text);
+                } else {
+                    appendTextLine(text);
+                }
             }
 
             // Show header timer (reset to 0)
@@ -434,6 +463,11 @@
             }
         });
 
+        client.on('toggle_canvas', (data) => {
+            canvasMode = data.visible;
+            applyCanvasMode();
+        });
+
         client.on('round_started', (data) => {
             if (data.server_time) updateClockOffset(data.server_time);
 
@@ -467,7 +501,12 @@
         });
 
         client.on('text_advanced', (data) => {
-            appendTextLine(data.paragraph || data.line);
+            const text = data.paragraph || data.line;
+            if (canvasMode) {
+                appendOverlayParagraph(text);
+            } else {
+                appendTextLine(text);
+            }
         });
 
         client.on('canvas_advanced', (data) => {
@@ -588,16 +627,16 @@
             titleEl.classList.remove('waiting');
             document.getElementById('storyText').textContent = '';
 
-            // Show OSD viewer if canvases present
-            if (roundData.canvases && roundData.canvases.length > 0) {
-                const osdContainer = document.getElementById('osdViewerContainer');
-                osdContainer.style.display = 'flex';
+            // Init OSD viewer if canvases present
+            const hasCanvases = roundData.canvases && roundData.canvases.length > 0;
+            if (hasCanvases) {
                 const canvas = roundData.canvases[roundData.canvas_index || 0];
                 if (canvas) {
                     initOsdViewer(canvas);
                     showCanvasLabel(canvas.label);
                 }
             }
+            applyCanvasMode();
         }
 
         function appendTextLine(line) {
@@ -620,6 +659,33 @@
             setTimeout(() => {
                 lineSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 100);
+        }
+
+        function appendOverlayParagraph(text) {
+            const container = document.getElementById('metadataParagraphs');
+            const div = document.createElement('div');
+            div.className = 'overlay-paragraph text-line';
+            div.textContent = text;
+            container.appendChild(div);
+
+            const overlay = document.getElementById('textOverlay');
+            setTimeout(() => {
+                overlay.scrollTop = overlay.scrollHeight;
+            }, 100);
+        }
+
+        function applyCanvasMode() {
+            const osdContainer = document.getElementById('osdViewerContainer');
+            const textContainer = document.querySelector('.story-text-container');
+            const hasOsd = osdViewer !== null;
+
+            if (canvasMode && hasOsd) {
+                osdContainer.style.display = 'flex';
+                textContainer.style.display = 'none';
+            } else {
+                osdContainer.style.display = 'none';
+                textContainer.style.display = '';
+            }
         }
 
         function markJudgeBuzzed(judgeId) {
@@ -649,6 +715,7 @@
         function resetView() {
             stopTensionTicks();
             tensionMode = false;
+            canvasMode = false;
 
             // Stop timer
             if (timer) timer.stop();
@@ -658,6 +725,9 @@
             document.getElementById('osdViewerContainer').style.display = 'none';
             document.getElementById('canvasLabel').style.display = 'none';
             document.getElementById('metadataParagraphs').innerHTML = '';
+
+            // Restore text container
+            document.querySelector('.story-text-container').style.display = '';
 
             document.getElementById('outcome').style.display = 'none';
             document.getElementById('headerTimer').style.display = 'none';
