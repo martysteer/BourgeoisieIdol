@@ -113,6 +113,8 @@
 
         .story-text-column {
             flex: 1;
+            display: flex;
+            flex-direction: column;
             padding: 1.5rem 2rem;
             overflow-y: auto;
             min-height: 50vh;
@@ -143,6 +145,18 @@
         .story-text-column .empty-text {
             opacity: 0.4;
             font-style: italic;
+        }
+
+        #osdViewerContainer {
+            flex: 1;
+        }
+
+        .overlay-paragraph {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.95);
         }
 
         .status-text {
@@ -590,9 +604,11 @@
             </details>
         </div>
         <div class="story-text-column">
-            <div id="osdViewerContainer" style="display: none; position: relative; margin-bottom: 1rem;">
-                <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem;"></div>
-                <div id="osdViewer" style="width: 100%; height: 200px; background: var(--black);"></div>
+            <div id="osdViewerContainer" style="display: none; position: relative; margin-bottom: 0;">
+                <div id="osdViewer" style="width: 100%; height: 100%; background: var(--black);"></div>
+                <div id="textOverlay" style="position:absolute;top:0;right:0;bottom:0;width:30%;overflow-y:auto;pointer-events:none;z-index:10;">
+                    <div id="metadataParagraphs" aria-live="polite" aria-relevant="additions"></div>
+                </div>
             </div>
             <div class="story-text" id="liveStoryText">
                 <span class="empty-text">Item text appears here during round...</span>
@@ -697,6 +713,7 @@
         // --- OSD viewer ---
         let osdViewer = null;
         let formCanvases = [];
+        let canvasMode = false;
 
         function osdIcon(svg) {
             return 'data:image/svg+xml,' + encodeURIComponent(
@@ -761,6 +778,33 @@
             if (!el) return;
             if (label) { el.textContent = label; el.style.display = 'block'; }
             else { el.style.display = 'none'; }
+        }
+
+        function applyCanvasMode() {
+            const osdContainer = document.getElementById('osdViewerContainer');
+            const textContainer = document.querySelector('.story-text');
+            const col = document.querySelector('.story-text-column');
+            if (canvasMode) {
+                osdContainer.style.display = 'flex';
+                textContainer.style.display = 'none';
+                col.style.padding = '0';
+                col.style.overflow = 'hidden';
+            } else {
+                osdContainer.style.display = 'none';
+                textContainer.style.display = '';
+                col.style.padding = '';
+                col.style.overflow = '';
+            }
+        }
+
+        function appendOverlayParagraph(text) {
+            const container = document.getElementById('metadataParagraphs');
+            const div = document.createElement('div');
+            div.className = 'overlay-paragraph';
+            div.textContent = text;
+            container.appendChild(div);
+            const overlay = document.getElementById('textOverlay');
+            setTimeout(() => { overlay.scrollTop = overlay.scrollHeight; }, 100);
         }
 
         function fetchManifestUrl() {
@@ -847,6 +891,8 @@
             // Set canvas visibility toggle state
             const canvasVisible = data.canvas_visible === true;
             document.getElementById('toggleCanvasCheckbox').checked = canvasVisible;
+            canvasMode = canvasVisible;
+            applyCanvasMode();
         });
 
         client.on('judge_joined', (data) => {
@@ -888,19 +934,25 @@
             timerEl.style.display = 'flex';
             timerEl.textContent = '0:00.0';
 
-            // Clear dimmed preview and show first paragraph
-            const firstParagraph = data.first_paragraph || data.first_line;
-            if (firstParagraph) {
-                document.getElementById('liveStoryText').innerHTML = '';
-                appendStoryLine(firstParagraph);
-            }
+            // Clear overlay paragraphs
+            document.getElementById('metadataParagraphs').innerHTML = '';
 
             // Show OSD if canvases present
             if (data.canvases && data.canvases.length > 0) {
-                document.getElementById('osdViewerContainer').style.display = '';
                 initOsdViewer(data.canvases[0]);
-                showCanvasLabel(data.canvases[0].label);
                 updateCanvasControls(0, data.canvases.length);
+            }
+            applyCanvasMode();
+
+            // Show first paragraph in correct container
+            const firstParagraph = data.first_paragraph || data.first_line;
+            if (firstParagraph) {
+                if (canvasMode && osdViewer) {
+                    appendOverlayParagraph(firstParagraph);
+                } else {
+                    document.getElementById('liveStoryText').innerHTML = '';
+                    appendStoryLine(firstParagraph);
+                }
             }
 
             // Show countdown
@@ -1028,7 +1080,12 @@
 
         client.on('text_advanced', (data) => {
             updateTextProgress(data.position + 1, data.total);
-            appendStoryLine(data.paragraph || data.line);
+            const text = data.paragraph || data.line;
+            if (canvasMode && osdViewer) {
+                appendOverlayParagraph(text);
+            } else {
+                appendStoryLine(text);
+            }
         });
 
         client.on('paused', (data) => {
@@ -1222,6 +1279,8 @@
             } else {
                 textEl.innerHTML = '<span class="empty-text">Item text appears here during round...</span>';
             }
+            // Clear overlay paragraphs
+            document.getElementById('metadataParagraphs').innerHTML = '';
         }
 
         // --- Item management (2-column: queue left, edit form right) ---
@@ -1458,6 +1517,8 @@
         }
 
         function toggleCanvas(visible) {
+            canvasMode = visible;
+            applyCanvasMode();
             client.toggleCanvas(visible);
         }
 
