@@ -26,6 +26,18 @@
           "service_url": "https://iiif.quartexcollections.com/soas/iiif/8162477f-ec24-484d-92bd-ceb1f24b34db"
         }
       ]
+    },
+    {
+      "title": "Execution by an eliphant.",
+      "text": "Execution by an eliphant.\n\nOrganization Name: SOAS,SOAS, University of London\n\nSummary: Robert Knox sailed aboard the English East India Company ship Ann captained by his father, Robert Knox Sr. Returning from Fort St George (Madras), a storm stranded them in November 1659 near Kottiar Bay in Sri Lanka, where they were detained by King Rajasinghe II of Kandy. Knox Jr’s stay in the kingdom lasted 19 years, and he recorded his time there in this book which also gives details of the country and its inhabitants. He and a companion escaped in 1679 through Dutch territory, reaching London in September 1680.  -- The book has an introduction by Robert Hooke, a founder member of the Royal Society in London.  (Text by Tom Tomlinson, from the exhibition catalogue: Objects of instruction : treasures of the School of Oriental and African Studies, Anna Contadini, Editor. London : SOAS, University of London, 2007.)\n\nReference Code: ED.68.16 /54355\n\nTitle: Execution by an eliphant.\n\nCreator (OLD): Knox, Robert, 1640?-1720\n\nLanguage: English\n\nCreator: Knox, Robert, 1640?-1720\n\nNote: The 'Objects of instruction : the treasures of SOAS' exhibition was funded through a generous gift from the Foyle Foundation and with the support of the Arts & Humanities Research Council.; Source: A. Contadini (ed.), Objects of instruction : treasures of the School of Oriental and African Studies. London : SOAS, University of London, 2007.  Listed as item number: 101; From: Robert Knox. An Historical Relation of the Island Ceylon, in the East-Indies: Together with an Account of the Detaining in Captivity the Author and divers other Englishmen now Living there, and of the Author’s Miraculous Escape; Page 22 of ED.68.16/54355\n\nPublisher: London\n\nCreation Date: 1681\n\nRecord Content Source: SOAS, University of London\n\nSubject: Elephants\n\nContinent: Asia\n\nCountry: Sri Lanka\n\nDate: D:00 M:00 Y:1681\n\nType of Resource: three dimensional object\n\nSOBEK Wordmark: BRUNEI\n\nSOBEK CM Statement: SOAS, University of London\n\nMeasurements: [in] H31.9 x W21 cm\n\nOrigin Info Place: London\n\nAlternative Title: Execution by an elephant\n\nGML Coordinates Point: 7.75,80.75\n\nRelated Parts: <a href=\"/documents?search=loaa005762&searchtypes=Metadata&applyState=true\" style=\"color: rgba(27, 31, 84, 1)\">View all parts associated with this asset</a>\n\nMore Information: Scroll down for further information\n\nBatch Number: Batch 6\n\nRepository: Art & Objects\n\nPlace: Sri Lanka\n\nSeries: Objects of instruction : treasures of SOAS\n\nDate Range: 1650 - 1699",
+      "manifest_url": "https://iiif.quartexcollections.com/soas/iiif/17661230-4a46-4491-ac7e-e227d42df774/manifest",
+      "canvases": [
+        {
+          "label": "LOAA005762_00001_LOAA005762",
+          "image_url": "https://iiif.quartexcollections.com/soas/iiif/b03a750d-509d-4f57-89ae-e948413fa833/full/full/0/default.jpg",
+          "service_url": "https://iiif.quartexcollections.com/soas/iiif/b03a750d-509d-4f57-89ae-e948413fa833"
+        }
+      ]
     }
   ],
   "config": {
