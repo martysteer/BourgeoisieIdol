@@ -109,6 +109,109 @@
         .header-timer.timer-force-hidden {
             display: none !important;
         }
+
+        /* Canvas mode layout */
+        #osdViewerContainer {
+            display: none;
+            width: 100%;
+            flex: 1;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #canvasLabel {
+            font-size: var(--text-caption);
+            color: var(--neon-yellow);
+            text-align: center;
+            padding: 0.5rem 0;
+            display: none;
+        }
+
+        #osdViewer {
+            width: 100%;
+            flex: 1;
+            min-height: 200px;
+            background: var(--black);
+        }
+
+        #textOverlay {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            max-height: 50%;
+            overflow-y: auto;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #metadataParagraphs {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .overlay-paragraph {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #fff;
+        }
+
+        /* Buzz button container — always in DOM */
+        #buzzContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Canvas mode: floating compact buzz */
+        main.canvas-mode #buzzContainer {
+            position: fixed;
+            top: 5rem;
+            right: 1rem;
+            z-index: 500;
+            gap: 0.25rem;
+        }
+
+        main.canvas-mode .buzz-button {
+            width: 80px;
+            height: 80px;
+            max-width: 80px;
+            max-height: 80px;
+            font-size: var(--text-caption);
+        }
+
+        main.canvas-mode .buzz-button .buzzed {
+            font-size: 2rem;
+        }
+
+        main.canvas-mode .buzz-count {
+            font-size: 0.5rem;
+        }
+
+        main.canvas-mode .story-title {
+            display: none;
+        }
+
+        main.canvas-mode {
+            padding: 0;
+        }
+
+        main.canvas-mode #osdViewerContainer {
+            display: flex;
+            flex: 1;
+        }
+
+        main.canvas-mode .waiting {
+            display: none;
+        }
+
+        main:not(.canvas-mode) #osdViewerContainer {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="page-locked">
@@ -130,12 +233,19 @@
 
     <main class="page-content" id="main" role="main">
         <div class="story-title" id="itemTitle" aria-live="polite"></div>
-        <div id="osdViewerContainer" style="margin: 0 auto 1rem; max-width: 300px; display: none; background: var(--black); padding: 0.5rem;">
-            <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
-            <div id="osdViewer" style="width: 100%; height: 250px;"></div>
+        <div id="osdViewerContainer">
+            <div id="canvasLabel"></div>
+            <div id="osdViewer"></div>
+            <div id="textOverlay">
+                <div id="metadataParagraphs" aria-live="polite" aria-relevant="additions"></div>
+            </div>
         </div>
-        <div id="metadataParagraphs" style="max-width: 400px; margin: 0 auto; text-align: left;"></div>
-        <div class="waiting">Waiting for round to start...</div>
+        <div id="buzzContainer">
+            <button class="buzz-button" id="buzzButton" onclick="buzz()" aria-label="Buzz out the reader" disabled>BUZZ</button>
+            <div class="buzz-count" id="buzzCountDisplay" aria-live="polite">0 of 0 buzzed</div>
+        </div>
+        <div class="judge-status" id="judgeStatus"></div>
+        <div class="waiting" id="waitingMessage">Waiting for round to start...</div>
     </main>
 
     <footer class="page-footer">
@@ -191,6 +301,7 @@
         const savedName = getSavedName();
 
         let osdViewer = null;
+        let canvasMode = false;
 
         function osdIcon(svg) {
             return 'data:image/svg+xml,' + encodeURIComponent(
@@ -257,6 +368,28 @@
             else { el.style.display = 'none'; }
         }
 
+        function applyCanvasMode() {
+            const main = document.getElementById('main');
+            if (canvasMode && osdViewer) {
+                main.classList.add('canvas-mode');
+            } else {
+                main.classList.remove('canvas-mode');
+            }
+        }
+
+        function appendOverlayParagraph(text) {
+            const container = document.getElementById('metadataParagraphs');
+            const div = document.createElement('div');
+            div.className = 'overlay-paragraph text-line';
+            div.textContent = text;
+            container.appendChild(div);
+
+            const overlay = document.getElementById('textOverlay');
+            setTimeout(() => {
+                overlay.scrollTop = overlay.scrollHeight;
+            }, 100);
+        }
+
         client.connect();
 
         client.onConnect = () => {
@@ -279,6 +412,10 @@
             // Set initial timer visibility
             if (data.timer_visible === false) {
                 document.getElementById('headerTimer').classList.add('timer-force-hidden');
+            }
+            // Set initial canvas mode
+            if (data.canvas_visible === true) {
+                canvasMode = true;
             }
             // Update connected judges and own name
             if (data.connected_judges) {
@@ -335,33 +472,43 @@
             }
         });
 
+        client.on('toggle_canvas', (data) => {
+            canvasMode = data.visible;
+            applyCanvasMode();
+        });
+
         client.on('countdown_start', (data) => {
             // Reset judge state fully
             buzzed = false;
             if (timer) timer.stop();
             if (countdown) countdown.cancel();
 
-            const main = document.getElementById('main');
+            // Show title
+            document.getElementById('itemTitle').textContent = data.item_title || '';
+
+            // Hide waiting message
+            document.getElementById('waitingMessage').style.display = 'none';
+
+            // Reset buzz button
+            const buzzButton = document.getElementById('buzzButton');
+            buzzButton.disabled = true;
+            buzzButton.innerHTML = 'BUZZ';
+
+            // Update buzz count
+            document.getElementById('buzzCountDisplay').textContent = `0 of ${connectedJudges.length} buzzed`;
+
+            // Clear overlay paragraphs
+            document.getElementById('metadataParagraphs').innerHTML = '';
+
+            // Init OSD if canvases present
             const hasCanvases = data.canvases && data.canvases.length > 0;
-            main.innerHTML = `
-                <div class="story-title" id="itemTitle" aria-live="polite">${data.item_title || ''}</div>
-                ${hasCanvases ? `
-                <div id="osdViewerContainer" style="margin: 0 auto 1rem; max-width: 300px; background: var(--black); padding: 0.5rem;">
-                    <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
-                    <div id="osdViewer" style="width: 100%; height: 250px;"></div>
-                </div>` : ''}
-                <button class="buzz-button" id="buzzButton" onclick="buzz()" aria-label="Buzz out the reader" disabled>
-                    BUZZ
-                </button>
-                <div class="judge-status" id="judgeStatus">
-                    <div class="buzz-count" id="buzzCountDisplay" aria-live="polite">0 of ${connectedJudges.length} buzzed</div>
-                </div>
-            `;
             if (hasCanvases) {
                 const canvas = data.canvases[0];
                 initOsdViewer(canvas);
                 showCanvasLabel(canvas.label);
             }
+            applyCanvasMode();
+
             renderJudgePanels(false);
 
             // Show header timer (reset to 0)
@@ -371,10 +518,7 @@
 
             // Start countdown, then activate
             countdown = new Countdown('countdown-container', () => {
-                // Countdown complete — activate buzz button, start timer
-                // (only if round_started hasn't already done so)
-                const button = document.getElementById('buzzButton');
-                if (button && !buzzed) button.disabled = false;
+                if (!buzzed) buzzButton.disabled = false;
 
                 if (!timer || !timer.intervalId) {
                     timer = new Timer(
@@ -394,27 +538,45 @@
         client.on('round_started', (data) => {
             if (data.server_time) updateClockOffset(data.server_time);
 
-            // If buzz button exists (from countdown_start), just sync timer
-            const existingBtn = document.getElementById('buzzButton');
-            if (existingBtn) {
-                // Enable button if not already buzzed
-                if (!buzzed) existingBtn.disabled = false;
-                // Start server-synced timer (supersedes countdown timer)
-                if (timer) timer.stop();
-                timer = new Timer(
-                    timerDuration,
-                    (elapsed) => {
-                        document.getElementById('headerTimer').textContent = formatTime(elapsed);
-                    },
-                    () => {
-                        if (typeof playVictoryFanfare === 'function') playVictoryFanfare();
+            // Set up title and OSD if not already done by countdown_start
+            const titleEl = document.getElementById('itemTitle');
+            if (!titleEl.textContent) {
+                titleEl.textContent = data.title || '';
+                document.getElementById('waitingMessage').style.display = 'none';
+
+                const hasCanvases = data.canvases && data.canvases.length > 0;
+                if (hasCanvases) {
+                    const canvas = data.canvases[data.canvas_index || 0];
+                    if (canvas) {
+                        initOsdViewer(canvas);
+                        showCanvasLabel(canvas.label);
                     }
-                );
-                timer.start(data.start_time || (Date.now() / 1000));
-            } else {
-                // Late join — full setup
-                startRound(data);
+                }
+                applyCanvasMode();
+                renderJudgePanels(false);
             }
+
+            // Enable button if not already buzzed
+            const buzzButton = document.getElementById('buzzButton');
+            if (!buzzed) buzzButton.disabled = false;
+
+            // Update buzz count
+            document.getElementById('buzzCountDisplay').textContent = `0 of ${connectedJudges.length} buzzed`;
+
+            // Start server-synced timer
+            const headerTimer = document.getElementById('headerTimer');
+            headerTimer.style.display = 'flex';
+            if (timer) timer.stop();
+            timer = new Timer(
+                timerDuration,
+                (elapsed) => {
+                    headerTimer.textContent = formatTime(elapsed);
+                },
+                () => {
+                    if (typeof playVictoryFanfare === 'function') playVictoryFanfare();
+                }
+            );
+            timer.start(data.start_time || (Date.now() / 1000));
         });
 
         client.on('paused', (data) => {
@@ -434,7 +596,10 @@
         });
 
         client.on('text_advanced', (data) => {
-            // Judges don't display text, but handle event to suppress console warning
+            if (canvasMode && osdViewer) {
+                appendOverlayParagraph(data.paragraph || data.line);
+            }
+            // In text mode, judges don't display text paragraphs
         });
 
         client.on('canvas_advanced', (data) => {
@@ -560,26 +725,34 @@
 
         function startRound(roundData) {
             buzzed = false;
-            const main = document.getElementById('main');
+
+            // Show title
+            document.getElementById('itemTitle').textContent = roundData.title || '';
+
+            // Hide waiting message
+            document.getElementById('waitingMessage').style.display = 'none';
+
+            // Reset and enable buzz button
+            const buzzButton = document.getElementById('buzzButton');
+            buzzButton.disabled = false;
+            buzzButton.innerHTML = 'BUZZ';
+
+            // Update buzz count
+            document.getElementById('buzzCountDisplay').textContent = `0 of ${connectedJudges.length} buzzed`;
+
+            // Clear overlay paragraphs
+            document.getElementById('metadataParagraphs').innerHTML = '';
+
+            // Init OSD if canvases present
             const hasCanvases = roundData.canvases && roundData.canvases.length > 0;
-            main.innerHTML = `
-                <div class="story-title" id="itemTitle" aria-live="polite">${roundData.title || ''}</div>
-                ${hasCanvases ? `
-                <div id="osdViewerContainer" style="margin: 0 auto 1rem; max-width: 300px; background: var(--black); padding: 0.5rem;">
-                    <div id="canvasLabel" style="font-size: var(--text-caption); color: var(--neon-yellow); text-align: center; margin-bottom: 0.25rem; display: none;"></div>
-                    <div id="osdViewer" style="width: 100%; height: 250px;"></div>
-                </div>` : ''}
-                <button class="buzz-button" id="buzzButton" onclick="buzz()" aria-label="Buzz out the reader">
-                    BUZZ
-                </button>
-                <div class="judge-status" id="judgeStatus">
-                    <div class="buzz-count" id="buzzCountDisplay" aria-live="polite">0 of ${connectedJudges.length} buzzed</div>
-                </div>
-            `;
             if (hasCanvases) {
                 const canvas = roundData.canvases[roundData.canvas_index || 0];
-                if (canvas) { initOsdViewer(canvas); showCanvasLabel(canvas.label); }
+                if (canvas) {
+                    initOsdViewer(canvas);
+                    showCanvasLabel(canvas.label);
+                }
             }
+            applyCanvasMode();
 
             renderJudgePanels(false);
 
@@ -647,8 +820,29 @@
             if (countdown) countdown.cancel();
             destroyOsdViewer();
             buzzed = false;
-            document.getElementById('main').innerHTML = '<div class="story-title" id="itemTitle" aria-live="polite"></div><div class="waiting">Waiting for round to start...</div>';
+            canvasMode = false;
+
+            // Reset title
+            document.getElementById('itemTitle').textContent = '';
+
+            // Show waiting message
+            document.getElementById('waitingMessage').style.display = '';
+
+            // Reset buzz button
+            const buzzButton = document.getElementById('buzzButton');
+            buzzButton.disabled = true;
+            buzzButton.innerHTML = 'BUZZ';
+
+            // Clear overlay paragraphs
+            document.getElementById('metadataParagraphs').innerHTML = '';
+
+            // Remove canvas mode
+            document.getElementById('main').classList.remove('canvas-mode');
+
+            // Hide timer
             document.getElementById('headerTimer').style.display = 'none';
+
+            // Clear buzzed state on judge panels
             document.querySelectorAll('.judge-cell').forEach(cell => {
                 cell.classList.remove('buzzed');
             });
