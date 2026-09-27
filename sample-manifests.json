@@ -2,9 +2,30 @@
   "items": [
     {
       "title": "Letter from Robert Morrison, 27 December 1805, London",
-      "text": "Abbe Chaumont's Lords Prayer. Transcribes version. Mentions where there are Chinese dictionaries he would like to see.",
+      "text": "Abbe Chaumont's Lords Prayer. Transcribes version. Mentions where there are Chinese dictionaries he would like to see.\n\nCreation Date\n27 December 1805\n\nPart Details\n1805\n\n\nSeries\nCWM. LMS. South China. Incoming correspondence\n\n\nCreator\nMorrison, Robert, 1782-1834\nImmediate source of acquisition or transfer\nDeposited on indefinite loan by the Council for World Mission.\n\n\nSummary\nAbbe Chaumont's Lords Prayer. Transcribes version. Mentions where there are Chinese dictionaries he would like to see.\n\nPlace\nUnited Kingdom - London\n\n\nSubject\nDictionaries\nMissions",
       "manifest_url": "https://iiif.quartexcollections.com/soas/iiif/0e062320-c587-4fc2-881b-93be99c57d9d/manifest",
-      "canvases": []
+      "canvases": [
+        {
+          "label": "CW00003883_00001_00001",
+          "image_url": "https://iiif.quartexcollections.com/soas/iiif/82f644dd-f4aa-48a6-ad8d-40c89eaa7261/full/full/0/default.jpg",
+          "service_url": "https://iiif.quartexcollections.com/soas/iiif/82f644dd-f4aa-48a6-ad8d-40c89eaa7261"
+        },
+        {
+          "label": "CW00003883_00001_00002",
+          "image_url": "https://iiif.quartexcollections.com/soas/iiif/299a7d10-ba9c-4661-af8f-1efe66f4d7d3/full/full/0/default.jpg",
+          "service_url": "https://iiif.quartexcollections.com/soas/iiif/299a7d10-ba9c-4661-af8f-1efe66f4d7d3"
+        },
+        {
+          "label": "CW00003883_00001_00003",
+          "image_url": "https://iiif.quartexcollections.com/soas/iiif/1be09e38-440a-49c6-b47e-ad25c80dcbe1/full/full/0/default.jpg",
+          "service_url": "https://iiif.quartexcollections.com/soas/iiif/1be09e38-440a-49c6-b47e-ad25c80dcbe1"
+        },
+        {
+          "label": "CW00003883_00001_00004",
+          "image_url": "https://iiif.quartexcollections.com/soas/iiif/8162477f-ec24-484d-92bd-ceb1f24b34db/full/full/0/default.jpg",
+          "service_url": "https://iiif.quartexcollections.com/soas/iiif/8162477f-ec24-484d-92bd-ceb1f24b34db"
+        }
+      ]
     }
   ],
   "config": {
