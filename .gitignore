@@ -4,3 +4,4 @@
 .http.pid
 __pycache__/
 *.pyc
+*.pyc

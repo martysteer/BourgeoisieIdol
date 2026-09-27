@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "title": "Letter from Robert Morrison, 27 December 1805, London",
+      "text": "Abbe Chaumont's Lords Prayer. Transcribes version. Mentions where there are Chinese dictionaries he would like to see.",
+      "manifest_url": "https://iiif.quartexcollections.com/soas/iiif/0e062320-c587-4fc2-881b-93be99c57d9d/manifest",
+      "canvases": []
+    }
+  ],
+  "config": {
+    "timer_duration": 120,
+    "speed_options": [
+      1,
+      2,
+      3
+    ]
+  }
+}
