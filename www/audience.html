@@ -313,14 +313,10 @@
         }
 
         function showCanvasLabel(label) {
-            // ponytail: canvasLabel removed from audience DOM, no-op
-            const labelEl = document.getElementById('canvasLabel');
-            if (label) {
-                labelEl.textContent = label;
-                labelEl.style.display = 'block';
-            } else {
-                labelEl.style.display = 'none';
-            }
+            const el = document.getElementById('canvasLabel');
+            if (!el) return;
+            if (label) { el.textContent = label; el.style.display = 'block'; }
+            else { el.style.display = 'none'; }
         }
 
         client.connect();
@@ -506,7 +502,6 @@
 
         client.on('canvas_advanced', (data) => {
             if (data.canvas) {
-                showCanvasLabel(data.canvas.label);
                 if (osdViewer) {
                     osdViewer.open(getTileSource(data.canvas));
                 } else {
