@@ -583,6 +583,9 @@
                 <label class="config-checkbox">
                     <input type="checkbox" id="toggleTimerCheckbox" checked onchange="toggleTimerVisibility(this.checked)"> Display timer to audience/judges
                 </label>
+                <label class="config-checkbox">
+                    <input type="checkbox" id="toggleCanvasCheckbox" onchange="toggleCanvas(this.checked)"> Display canvas to audience/judges
+                </label>
                 <div id="judgeQRContainer"></div>
             </details>
         </div>
@@ -840,6 +843,10 @@
             // Set timer visibility toggle state
             const timerVisible = data.timer_visible !== false;
             document.getElementById('toggleTimerCheckbox').checked = timerVisible;
+
+            // Set canvas visibility toggle state
+            const canvasVisible = data.canvas_visible === true;
+            document.getElementById('toggleCanvasCheckbox').checked = canvasVisible;
         });
 
         client.on('judge_joined', (data) => {
@@ -1448,6 +1455,10 @@
 
         function toggleTimerVisibility(visible) {
             client.send('toggle_timer_visibility', { visible: visible });
+        }
+
+        function toggleCanvas(visible) {
+            client.toggleCanvas(visible);
         }
 
         function advanceText() {
