@@ -698,7 +698,7 @@
 
     <script src="lib/qrcode-generator.js"></script>
     <script src="sounds.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
     <script>
         const params = getUrlParams();
         const client = new SpecIdolClient();
@@ -760,6 +760,7 @@
             osdViewer = OpenSeadragon({
                 element: document.getElementById('osdViewer'),
                 tileSources: getTileSource(canvas),
+                crossOriginPolicy: 'Anonymous',
                 showNavigator: false,
                 showNavigationControl: true,
                 gestureSettingsMouse: { scrollToZoom: true },

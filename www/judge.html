@@ -259,7 +259,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
     <script src="sounds.js"></script>
     <script>
         const params = getUrlParams();
@@ -340,6 +340,7 @@
             osdViewer = OpenSeadragon({
                 element: document.getElementById('osdViewer'),
                 tileSources: getTileSource(canvas),
+                crossOriginPolicy: 'Anonymous',
                 showNavigator: false,
                 showNavigationControl: false,
                 mouseNavEnabled: false,
