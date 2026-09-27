@@ -586,6 +586,7 @@ async def handle_message(websocket, message_data):
             "type": "canvas_advanced",
             "data": {
                 "canvas_index": canvas_index,
+                "total_canvases": len(canvases),
                 "canvas": canvases[canvas_index]
             }
         })

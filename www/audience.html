@@ -156,14 +156,6 @@
             position: relative;
         }
 
-        #canvasLabel {
-            font-size: var(--text-body);
-            color: var(--neon-yellow);
-            text-align: center;
-            padding: 0.5rem 0;
-            display: none;
-        }
-
         #osdViewer {
             width: 100%;
             flex: 1;
@@ -173,10 +165,10 @@
 
         #textOverlay {
             position: absolute;
-            bottom: 1rem;
-            left: 1rem;
-            right: 1rem;
-            max-height: 50%;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 30%;
             overflow-y: auto;
             pointer-events: none;
             z-index: 10;
@@ -185,15 +177,16 @@
         #metadataParagraphs {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.25rem;
+            padding: 0.5rem;
         }
 
         .overlay-paragraph {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 0.75rem 1rem;
-            font-size: 1.4rem;
-            line-height: 1.6;
-            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 0.5rem 0.75rem;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.95);
         }
     </style>
 </head>
@@ -215,8 +208,7 @@
     </header>
 
     <main class="page-content">
-        <div id="osdViewerContainer" style="padding: 1rem;">
-            <div id="canvasLabel"></div>
+        <div id="osdViewerContainer">
             <div id="osdViewer">
                 <div id="osdPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--neon-green);opacity:0.4;font-size:var(--text-body);text-align:center;">Canvas area</div>
             </div>
@@ -321,6 +313,7 @@
         }
 
         function showCanvasLabel(label) {
+            // ponytail: canvasLabel removed from audience DOM, no-op
             const labelEl = document.getElementById('canvasLabel');
             if (label) {
                 labelEl.textContent = label;
@@ -726,7 +719,6 @@
             // Destroy OSD viewer
             destroyOsdViewer();
             document.getElementById('osdViewerContainer').style.display = 'none';
-            document.getElementById('canvasLabel').style.display = 'none';
             document.getElementById('metadataParagraphs').innerHTML = '';
 
             // Restore text container
